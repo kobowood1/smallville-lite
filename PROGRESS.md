@@ -15,6 +15,7 @@ _Last updated: 2026-09-24_
 | 3 | Cognitive core (+ tick engine, party scenario) | `ac4ce91` | done |
 | 4 | Runner, checkpoint/resume, report, web log | `c3c22c2` | done |
 | 5 | Visual town (replay + live), three.js 3D + SVG 2D | `4775241` | done |
+| — | Sharing: static replay export, public GitHub repo, README, Apache 2.0 | `55b6599`–`d87392b` | done |
 
 - **Tests:** 110 offline tests pass and 4 are skipped. The skips are 3 live-API tests and one embedder test that's
   redundant once the embedder is installed. Run them with `cd smallville_lite && .venv/Scripts/python -m pytest`.
@@ -49,6 +50,22 @@ _Last updated: 2026-09-24_
   - Tabs: Town (3D/2D animated map, playback 1×–60×, live mode over SSE), Timeline, Memory, Reflections, Dialogues,
     Cost, Interview, Report.
 
+## Sharing (added 2026-09-24)
+
+- **GitHub:** https://github.com/kobowood1/smallville-lite (public, `origin`, `main` tracks `origin/main`).
+- **License:** Apache 2.0 (`LICENSE`), with `NOTICE` giving the copyright line (kobowood1) and attribution to the
+  original repo for kept prompt wording. `pyproject.toml` declares `license = "Apache-2.0"` (needs setuptools>=77).
+- **Replay page:** https://claude.ai/artifact/7PTcwL9qRDNCm51DCQnAvq, a static read-only copy of the viewer showing the
+  `party-demo` stub run.
+  - It's **private until the owner turns on link sharing** from the page's Share menu. The top-level README links to it.
+  - Made with `smallville_lite/scripts/export_artifact.py runs/<id> <out_dir>`. The script saves the run's API
+    responses through the real FastAPI app and bundles them with a fetch shim. Live mode and new interviews are off, and
+    `scenario_dir` (a local path) is left out.
+  - To update the same link, republish to that URL. Before exporting a real-model run, edit `NOTE` in the script,
+    because it describes a stub run.
+- **README:** a top-level `README.md` with a screenshot (`docs/replay-town.png`, day 2 at 17:30, the party), a
+  stub-mode warning, and a project overview. `smallville_lite/README.md` keeps the full command reference.
+
 ## How to run (from `smallville_lite/`)
 
 ```bash
@@ -78,6 +95,7 @@ Existing runs in `smallville_lite/runs/` (gitignored): `party-demo` and `party-l
    - Do tasks with different output schemas share one cache entry? This is the open question in DESIGN §6.3.
    - Does the party news spread and do invitees attend, with real model output?
 4. **Look at the 3D view on a real GPU.** It was only verified in headless Chromium, which renders WebGL in software.
+5. **Once a real run looks good,** export it and republish it to the replay URL, and update the README's stub-mode note.
 
 ## Known issues and notes
 
