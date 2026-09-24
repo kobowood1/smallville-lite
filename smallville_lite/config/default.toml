@@ -4,6 +4,14 @@
 [run]
 seed = 7
 stub = false            # true = FakeLLM + stub embeddings, zero network, zero spend
+checkpoint_keep = 5     # most recent checkpoints kept
+checkpoint_keep_every = 6   # plus every Nth tick (hourly at 10-minute ticks), for interviews at past times
+
+[report]
+reserve_usd = 0.40      # part of --budget held back for the post-run report interviews
+
+[server]
+interview_budget_usd = 0.50   # per viewer session, for ad-hoc interviews
 
 [budget]
 max_usd = 5.00          # hard stop, checked before every paid call

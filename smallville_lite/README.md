@@ -4,8 +4,8 @@ A text-only reimplementation of *Generative Agents: Interactive Simulacra of Hum
 (Park et al., UIST 2023) on the Claude API. See `../ARCHITECTURE.md` (map of the original) and
 `../DESIGN.md` (this project's design).
 
-**Status:** Phases 2 (model layer + cost controls) and 3 (cognitive core) are done. The CLI runner, checkpoint/resume,
-report, and web log are Phase 4.
+**Status:** Phases 2 (model layer + cost controls), 3 (cognitive core) and 4 (runner, checkpoint/resume, report,
+web log) are done. Phase 5 adds the visual town.
 
 ## Setup
 
@@ -15,6 +15,7 @@ python -m venv .venv
 pip install -e ".[dev]"           # core + tests (enough for --stub)
 pip install -e ".[local]"         # local sentence-transformers embeddings (default for real runs)
 pip install -e ".[voyage]"        # optional: Voyage AI embeddings
+pip install -e ".[web]"           # the web log viewer
 ```
 
 API keys come from the environment only. The config loader rejects anything that looks like a key.
@@ -24,7 +25,41 @@ export ANTHROPIC_API_KEY=...      # real LLM calls
 export VOYAGE_API_KEY=...         # only if [embedding].provider = "voyage"
 ```
 
-## Commands (Phase 2)
+## Running a simulation
+
+```bash
+smallville run --scenario party --days 2 --budget 5.00 --stub      # zero-cost dry run
+smallville run --scenario party --hours 6 --budget 1.00            # short live calibration run
+smallville resume runs/<id> [--budget 8] [--days 3]                # continue from the latest checkpoint
+smallville interview runs/<id> --agent "Klaus Mueller" [--tick 60] "Who is running for mayor?"
+smallville report runs/<id> [--no-llm]                             # re-generate the report
+smallville serve                                                    # viewer at http://127.0.0.1:8765
+```
+
+- **Budget:** `--budget` caps the whole run. The simulation stops at `budget - [report].reserve_usd`, and the report
+  interviews use the rest. When the cap is reached, the current tick is abandoned (its cost events are kept), the last full
+  tick is already checkpointed, a partial report is written from memory evidence alone, and the command exits 0. Continue
+  with `resume --budget <higher>`.
+- **Run directory:** `runs/<id>/` holds `events.jsonl`, `config.resolved.json`, `checkpoints/` (the last 5, plus one
+  every game hour), `baseline.json` (the start-of-run "Do you know of X?" survey), `report.json` / `report.md`, and
+  `interviews.jsonl`.
+- **Report (paper §7.1):**
+  - who knows about each fact, with every "yes" checked against the memory stream (ungrounded answers are flagged as
+    hallucinated), and who heard it from whom;
+  - relationship network density at the start and end;
+  - who was at the party, and follow-up interviews for invitees who didn't come.
+- **Viewer tabs:**
+  - timeline, with emoji, label, and full action text, plus a game-time scrubber;
+  - memory stream, filterable by type and subtype, with importance and last-accessed times;
+  - reflection trees (each insight with the memories it cites);
+  - dialogue transcripts, with any commitments made;
+  - cost and usage;
+  - interviews against any saved checkpoint (the App. B presets are included);
+  - the report.
+
+  A running simulation is followed live by polling the log.
+
+## Model-layer utilities (Phase 2)
 
 ```bash
 smallville check-models                     # verify configured model IDs via the live Models API

@@ -145,3 +145,8 @@ class AgentSummaryOut(_Out):
 class InterviewAnswer(_Out):
     answer: str
     cited: list[int] = Field(description="Numbers of the memories the answer relies on.")
+
+
+class JudgeOut(_Out):
+    knows: bool
+    reason: str

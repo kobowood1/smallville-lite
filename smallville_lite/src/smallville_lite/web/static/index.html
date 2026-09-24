@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smallville Log</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f6f4; --surface: #fcfcfb; --surface-2: #f0efec; --border: #dedcd6;
+    --text: #0b0b0b; --text-2: #52514e; --text-3: #7c7b76;
+    --accent: #2a78d6; --accent-soft: #e3eefc; --series-1: #2a78d6; --grid: #e7e5e0;
+    --chat: #eb6834; --chat-soft: #fdebe3; --reflect: #4a3aa7; --plan: #1baf7a;
+    --warn: #fab219; --crit: #d03b3b; --good: #0ca30c;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #383835;
+      --text: #ffffff; --text-2: #c3c2b7; --text-3: #8f8e86;
+      --accent: #3987e5; --accent-soft: #1c2a3d; --series-1: #3987e5; --grid: #2c2c2a;
+      --chat: #d95926; --chat-soft: #3a2419; --reflect: #9085e9; --plan: #199e70;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 16px; }
+  .brand { font-weight: 700; letter-spacing: .2px; }
+  .brand small { font-weight: 400; color: var(--text-3); margin-left: 6px; }
+  select, input, textarea, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+  button { cursor: pointer; background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12.5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .dot.live { background: var(--good); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .spacer { flex: 1; }
+  .scrub { display: flex; align-items: center; gap: 10px; padding: 0 16px 10px; }
+  .scrub input[type=range] { flex: 1; accent-color: var(--accent); }
+  .clock { font-family: var(--mono); font-size: 13px; min-width: 190px; color: var(--text-2); }
+  nav { display: flex; gap: 2px; padding: 0 12px; overflow-x: auto; }
+  nav button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--text-2); }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  main { padding: 16px; max-width: 1500px; margin: 0 auto; }
+  .panel { display: none; } .panel.on { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .muted { color: var(--text-3); } .small { font-size: 12.5px; } .mono { font-family: var(--mono); font-size: 12.5px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .grid-now { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .now .who { font-weight: 600; } .now .emo { font-size: 22px; margin-right: 6px; vertical-align: middle; }
+  .now .where { color: var(--text-2); font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; color: var(--text-2); font-size: 12.5px; position: sticky; top: 0; background: var(--surface); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tl { overflow-x: auto; }
+  .tl table { table-layout: fixed; min-width: 760px; }
+  .tl td { padding: 4px 6px; }
+  .tl td.hour { width: 58px; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+  .tl tr.cur td { background: var(--accent-soft); }
+  .chip { display: block; margin: 2px 0; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); font-size: 12.5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip:hover { outline: 1px solid var(--accent); }
+  .chip.brief { opacity: .7; font-size: 12px; }
+  .chip.chat { background: var(--chat-soft); }
+  .chip .t { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); margin-right: 4px; }
+  .detail { margin-top: 10px; }
+  .badge { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600; border: 1px solid currentColor; }
+  .b-observation { color: var(--accent); } .b-reflection { color: var(--reflect); } .b-plan { color: var(--plan); }
+  .imp { display: inline-block; width: 60px; height: 6px; background: var(--surface-2); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+  .imp > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .ev { display: inline-block; margin: 1px 3px 1px 0; padding: 0 6px; border-radius: 4px; background: var(--surface-2); font-family: var(--mono); font-size: 11.5px; cursor: pointer; }
+  tr.flash td { background: var(--accent-soft); }
+  details { margin: 4px 0 4px 12px; } summary { cursor: pointer; }
+  .tree > details { margin-left: 0; }
+  .depth { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); margin-right: 4px; }
+  .split { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 14px; }
+  @media (max-width: 800px) { .split { grid-template-columns: 1fr; } }
+  .list { max-height: 70vh; overflow: auto; }
+  .li { padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .li:hover, .li.on { background: var(--surface-2); }
+  .bubble { max-width: 80%; margin: 6px 0; padding: 8px 12px; border-radius: 12px; background: var(--surface-2); }
+  .bubble.right { margin-left: auto; background: var(--accent-soft); }
+  .bubble .who { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .kpi .l { color: var(--text-2); font-size: 12.5px; }
+  .chart { position: relative; }
+  .chart svg { width: 100%; height: 240px; display: block; }
+  .chart .axis { fill: var(--text-3); font-size: 11px; font-family: var(--mono); }
+  .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12); display: none; white-space: nowrap; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 14px; }
+  .warn { color: var(--crit); } .ok { color: var(--good); }
+  textarea { width: 100%; min-height: 70px; }
+  .answer { white-space: pre-wrap; }
+  h2 { font-size: 16px; margin: 0 0 10px; } h3 { font-size: 14px; margin: 16px 0 8px; }
+  .empty { padding: 30px; text-align: center; color: var(--text-3); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">smallville_lite<small>event log</small></div>
+    <select id="runSel" aria-label="Run"></select>
+    <span class="pill"><span id="liveDot" class="dot"></span><span id="status">no run</span></span>
+    <span class="pill" id="spend">$0.00</span>
+    <span class="spacer"></span>
+    <label class="small"><input type="checkbox" id="follow" checked> follow latest</label>
+  </div>
+  <div class="scrub">
+    <input type="range" id="tick" min="0" max="0" value="0" aria-label="Game time">
+    <span class="clock" id="clock">-</span>
+  </div>
+  <nav id="tabs">
+    <button data-tab="timeline" class="on">Timeline</button>
+    <button data-tab="memory">Memory</button>
+    <button data-tab="reflections">Reflections</button>
+    <button data-tab="dialogues">Dialogues</button>
+    <button data-tab="cost">Cost</button>
+    <button data-tab="interview">Interview</button>
+    <button data-tab="report">Report</button>
+  </nav>
+</header>
+<main>
+  <section class="panel on" id="p-timeline">
+    <div class="grid-now" id="nowCards"></div>
+    <div class="row"><label>Day <select id="daySel"></select></label>
+      <label class="small"><input type="checkbox" id="showBrief" checked> show short steps</label></div>
+    <div class="card tl"><table id="tlTable"></table></div>
+    <div class="card detail" id="tlDetail" hidden></div>
+  </section>
+
+  <section class="panel" id="p-memory">
+    <div class="row">
+      <select id="memAgent" aria-label="Agent"></select>
+      <label><input type="checkbox" class="memType" value="observation" checked> observations</label>
+      <label><input type="checkbox" class="memType" value="reflection" checked> reflections</label>
+      <label><input type="checkbox" class="memType" value="plan" checked> plans</label>
+      <select id="memSub" aria-label="Subtype"><option value="">all subtypes</option></select>
+      <input id="memSearch" placeholder="search text" size="22">
+      <select id="memSort" aria-label="Sort">
+        <option value="new">newest first</option><option value="old">oldest first</option>
+        <option value="imp">importance</option><option value="acc">recently accessed</option>
+      </select>
+      <label class="small"><input type="checkbox" id="memAsOf" checked> as of scrubber time</label>
+      <span class="muted small" id="memCount"></span>
+    </div>
+    <div class="card" style="overflow-x:auto"><table id="memTable"></table></div>
+  </section>
+
+  <section class="panel" id="p-reflections">
+    <div class="row"><select id="refAgent" aria-label="Agent"></select><span class="muted small" id="refCount"></span></div>
+    <div class="card tree" id="refTree"></div>
+    <h3>Reflection runs</h3>
+    <div class="card" id="refRuns"></div>
+  </section>
+
+  <section class="panel" id="p-dialogues">
+    <div class="row"><select id="dlgAgent" aria-label="Agent"><option value="">everyone</option></select>
+      <span class="muted small" id="dlgCount"></span></div>
+    <div class="split">
+      <div class="card list" id="dlgList"></div>
+      <div class="card" id="dlgView"><div class="empty">Pick a conversation.</div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-cost">
+    <div class="kpis" id="kpis"></div>
+    <div class="card chart" id="spendChart"></div>
+    <div class="cols">
+      <div class="card"><h2>By model</h2><table id="byModel"></table></div>
+      <div class="card"><h2>By task</h2><table id="byTask"></table></div>
+    </div>
+    <div class="cols">
+      <div class="card"><h2>Fallbacks</h2><div id="fallbacks"></div></div>
+      <div class="card"><h2>Budget events</h2><div id="budgetEvents"></div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-interview">
+    <div class="split">
+      <div class="card">
+        <h2>Ask an agent</h2>
+        <p class="muted small">Answered from the agent's saved memory at a checkpoint (paper §6). The run is never changed.</p>
+        <div class="row"><select id="ivAgent" aria-label="Agent"></select>
+          <label class="small">as of <select id="ivTick"></select></label></div>
+        <div class="row"><select id="ivPreset" aria-label="Preset question" style="max-width:100%"><option value="">App. B preset questions…</option></select></div>
+        <textarea id="ivQ" placeholder="Type a question"></textarea>
+        <div class="row" style="margin-top:8px"><button class="primary" id="ivAsk">Ask</button><span class="muted small" id="ivNote"></span></div>
+      </div>
+      <div class="card"><div id="ivResult"><div class="empty">Answers appear here.</div></div>
+        <h3>Earlier interviews</h3><div id="ivHistory" class="small"></div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-report"><div id="reportView"><div class="empty">No report yet.</div></div></section>
+</main>
+
+<script type="module">
+import { createIndex, addEvents, reduceState, gameTime, memoryAt, lastAccessed, reflectionForest, usage,
+         hitRate, conversationsFor, commitmentsFor } from "/static/state.js";
+
+// ---------- tiny DOM helpers (all data goes in via textContent) ----------
+const $ = (s) => document.querySelector(s);
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "style") el.style.cssText = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const clear = (el) => { el.replaceChildren(); return el; };
+const fmtTime = (iso) => iso ? iso.slice(11, 16) : "";
+const fmtDay = (iso) => iso ? iso.slice(0, 10) : "";
+const money = (x, d = 4) => "$" + (x || 0).toFixed(d);
+const first = (name) => name.split(" ")[0];
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+// ---------- state ----------
+let idx = createIndex();
+let runId = null, runMeta = null, pollTimer = null, tab = "timeline";
+const ui = { tick: 0, day: null, selConv: null };
+
+async function loadRuns() {
+  const runs = await getJSON("/api/runs");
+  const sel = clear($("#runSel"));
+  if (!runs.length) { sel.append(h("option", {}, "no runs yet")); return; }
+  for (const r of runs) sel.append(h("option", { value: r.run_id }, `${r.run_id} · ${r.status}${r.stub ? " · stub" : ""}`));
+  const want = new URLSearchParams(location.search).get("run");
+  sel.value = runs.some((r) => r.run_id === want) ? want : runs[0].run_id;
+  await openRun(sel.value);
+}
+
+async function openRun(id) {
+  runId = id; idx = createIndex(); ui.day = null; ui.selConv = null;
+  history.replaceState(null, "", `?run=${encodeURIComponent(id)}`);
+  runMeta = await getJSON(`/api/runs/${id}/meta`);
+  const data = await getJSON(`/api/runs/${id}/events?after=0`);
+  addEvents(idx, data.events);
+  setupSelectors();
+  ui.tick = idx.maxTick;
+  syncHeader(); render();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(poll, 2000);
+}
+
+async function poll() {
+  if (!runId || idx.run.status !== "running") { $("#liveDot").classList.remove("live"); return; }
+  const data = await getJSON(`/api/runs/${runId}/events?after=${idx.lastSeq}`).catch(() => null);
+  if (!data || !data.events.length) return;
+  addEvents(idx, data.events);
+  if ($("#follow").checked) ui.tick = idx.maxTick;
+  setupSelectors(); syncHeader(); render();
+}
+
+function syncHeader() {
+  const u = usage(idx);
+  const spent = idx.run.status === "running" ? u.total.cost + u.embedCost : Math.max(idx.run.spent, u.total.cost);
+  $("#status").textContent = `${idx.run.status}${idx.run.stub ? " (stub)" : ""}`;
+  $("#liveDot").classList.toggle("live", idx.run.status === "running");
+  $("#spend").textContent = `${money(spent, 2)} of ${money(idx.run.budget || runMeta?.budget_usd || 0, 2)}`;
+  const r = $("#tick"); r.max = idx.maxTick; r.value = ui.tick;
+  const t = gameTime(idx, ui.tick);
+  $("#clock").textContent = t ? `tick ${ui.tick} · ${t.toISOString().slice(0, 16).replace("T", " ")}` : "-";
+}
+
+function setupSelectors() {
+  for (const id of ["#memAgent", "#refAgent", "#ivAgent"]) {
+    const sel = $(id), keep = sel.value;
+    if (sel.options.length === idx.agentNames.length) continue;
+    clear(sel);
+    for (const n of idx.agentNames) sel.append(h("option", { value: n }, n));
+    if (keep) sel.value = keep;
+  }
+  const dlg = $("#dlgAgent");
+  if (dlg.options.length !== idx.agentNames.length + 1) {
+    const keep = dlg.value; clear(dlg).append(h("option", { value: "" }, "everyone"));
+    for (const n of idx.agentNames) dlg.append(h("option", { value: n }, n));
+    dlg.value = keep;
+  }
+  const days = new Set();
+  for (const a of Object.values(idx.agents)) for (const act of a.actions) if (act.time) days.add(fmtDay(act.time));
+  const daySel = $("#daySel"), keepDay = daySel.value;
+  if (daySel.options.length !== days.size) {
+    clear(daySel);
+    for (const d of [...days].sort()) daySel.append(h("option", { value: d }, d));
+    daySel.value = keepDay || [...days].sort()[0] || "";
+  }
+  const ivTick = $("#ivTick");
+  if (runMeta && ivTick.options.length !== runMeta.checkpoints.length) {
+    clear(ivTick);
+    for (const t of [...runMeta.checkpoints].reverse()) {
+      const gt = gameTime(idx, t);
+      ivTick.append(h("option", { value: t }, gt ? `${gt.toISOString().slice(5, 16).replace("T", " ")} (tick ${t})` : `tick ${t}`));
+    }
+  }
+}
+
+// ---------- rendering ----------
+function render() {
+  syncHeader();
+  ({ timeline: renderTimeline, memory: renderMemory, reflections: renderReflections, dialogues: renderDialogues,
+     cost: renderCost, interview: renderInterview, report: renderReport })[tab]();
+}
+
+function renderTimeline() {
+  const state = reduceState(idx, ui.tick);
+  const cards = clear($("#nowCards"));
+  for (const name of idx.agentNames) {
+    const a = state.agents[name] || {};
+    const where = a.in_transit ? `walking ${a.in_transit.from} → ${a.in_transit.to}` : (a.place || "?");
+    cards.append(h("div", { class: "card now" },
+      h("div", {}, h("span", { class: "emo" }, a.emoji || "·"), h("span", { class: "who" }, name)),
+      h("div", {}, a.description || "(nothing yet)"),
+      h("div", { class: "where" }, where)));
+  }
+  const day = $("#daySel").value;
+  const showBrief = $("#showBrief").checked;
+  const table = clear($("#tlTable"));
+  table.append(h("colgroup", {}, h("col", { style: "width:58px" }), idx.agentNames.map(() => h("col"))));
+  table.append(h("tr", {}, h("th", {}, ""), idx.agentNames.map((n) => h("th", {}, n))));
+  const cur = gameTime(idx, ui.tick);
+  const curHour = cur && cur.toISOString().slice(0, 10) === day ? cur.getUTCHours() : -1;
+  const byAgentHour = {};
+  for (const n of idx.agentNames) {
+    byAgentHour[n] = {};
+    for (const act of idx.agents[n].actions) {
+      if (!act.time || fmtDay(act.time) !== day || (act.brief && !showBrief)) continue;
+      const hr = +act.time.slice(11, 13);
+      (byAgentHour[n][hr] ??= []).push(act);
+    }
+  }
+  for (let hr = 0; hr < 24; hr++) {
+    if (!idx.agentNames.some((n) => byAgentHour[n][hr])) continue;
+    const tr = h("tr", { class: hr === curHour ? "cur" : "" }, h("td", { class: "hour" }, `${String(hr).padStart(2, "0")}:00`));
+    for (const n of idx.agentNames) {
+      const td = h("td");
+      for (const act of byAgentHour[n][hr] || []) {
+        td.append(h("span", { class: `chip ${act.brief ? "brief" : ""} ${act.kind === "chat" ? "chat" : ""}`,
+                              title: `${fmtTime(act.time)} ${act.description} @ ${act.place}`,
+                              onclick: () => showAction(act) },
+          h("span", { class: "t" }, fmtTime(act.time)), `${act.emoji} ${act.label || act.description}`));
+      }
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+}
+
+function showAction(act) {
+  const box = $("#tlDetail"); box.hidden = false; clear(box);
+  box.append(h("div", { class: "who" }, `${act.emoji} ${act.description}`),
+    h("div", { class: "muted small" }, `${act.time} · ${act.place}${act.object ? " · " + act.object : ""}` +
+      `${act.duration_min ? " · " + act.duration_min + " min" : ""} · ${act.kind}`));
+  if (act.kind === "chat") {
+    const conv = [...idx.conversations.values()].find((c) => act.action_id === `${c.id}-${act.agent}`);
+    if (conv) box.append(h("p", {}, h("button", { onclick: () => { ui.selConv = conv.id; switchTab("dialogues"); } }, "Open transcript")));
+  }
+}
+
+function renderMemory() {
+  const agent = $("#memAgent").value;
+  if (!agent) return;
+  const types = new Set([...document.querySelectorAll(".memType:checked")].map((c) => c.value));
+  const asOf = $("#memAsOf").checked ? ui.tick : Infinity;
+  const all = memoryAt(idx, agent, asOf);
+  const subSel = $("#memSub"), keep = subSel.value;
+  const subs = [...new Set(all.map((n) => n.subtype))].sort();
+  if (subSel.options.length !== subs.length + 1) {
+    clear(subSel).append(h("option", { value: "" }, "all subtypes"));
+    for (const s of subs) subSel.append(h("option", { value: s }, s));
+    subSel.value = subs.includes(keep) ? keep : "";
+  }
+  const q = $("#memSearch").value.trim().toLowerCase();
+  let rows = all.filter((n) => types.has(n.type) && (!subSel.value || n.subtype === subSel.value) &&
+    (!q || n.description.toLowerCase().includes(q)));
+  const acc = (n) => (lastAccessed(idx, agent, n.id, asOf)?.time) || n.created;
+  const sorts = { new: (a, b) => b.created.localeCompare(a.created) || b.id.localeCompare(a.id),
+                  old: (a, b) => a.created.localeCompare(b.created), imp: (a, b) => b.importance - a.importance,
+                  acc: (a, b) => acc(b).localeCompare(acc(a)) };
+  rows.sort(sorts[$("#memSort").value]);
+  $("#memCount").textContent = `${rows.length} of ${all.length} memories`;
+  const table = clear($("#memTable"));
+  table.append(h("tr", {}, ["created", "type", "importance", "memory", "evidence", "last accessed"].map((c) => h("th", {}, c))));
+  for (const n of rows.slice(0, 1500)) {
+    const la = lastAccessed(idx, agent, n.id, asOf);
+    table.append(h("tr", { id: `m-${n.id}` },
+      h("td", { class: "mono" }, n.created.slice(5, 16).replace("T", " ")),
+      h("td", {}, h("span", { class: `badge b-${n.type}` }, n.type), h("div", { class: "muted small" }, n.subtype + (n.depth ? ` · depth ${n.depth}` : ""))),
+      h("td", { class: "num" }, h("span", { class: "imp", title: `${n.importance}/10` }, h("i", { style: `width:${n.importance * 10}%` })), n.importance),
+      h("td", {}, n.description),
+      h("td", {}, n.evidence.map((id) => h("span", { class: "ev", title: idx.agents[agent].byId.get(id)?.description || id,
+                                                    onclick: () => flashMemory(id) }, id.split(":")[1]))),
+      h("td", { class: "mono muted" }, la ? `${la.time.slice(5, 16).replace("T", " ")} (${la.purpose})` : "never")));
+  }
+  if (!rows.length) table.append(h("tr", {}, h("td", { colspan: 6, class: "empty" }, "No memories match.")));
+}
+
+function flashMemory(id) {
+  const row = document.getElementById(`m-${id}`);
+  if (!row) {
+    const n = idx.agents[$("#memAgent").value]?.byId.get(id);
+    alertBox(n ? `${id}: ${n.description}` : id);
+    return;
+  }
+  row.scrollIntoView({ block: "center" });
+  row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1600);
+}
+function alertBox(text) {
+  const box = h("div", { class: "card", style: "position:fixed;bottom:16px;right:16px;max-width:420px;z-index:9" }, text);
+  document.body.append(box); setTimeout(() => box.remove(), 4000);
+}
+
+function renderReflections() {
+  const agent = $("#refAgent").value;
+  if (!agent) return;
+  const forest = reflectionForest(idx, agent);
+  const box = clear($("#refTree"));
+  $("#refCount").textContent = `${forest.length} top-level reflections`;
+  const node = (t) => {
+    const n = t.node;
+    const label = h("span", {}, h("span", { class: "depth" }, n.type === "reflection" ? `d${n.depth}` : "leaf"),
+      h("span", { class: `badge b-${n.type}` }, n.subtype), " ", n.description,
+      h("span", { class: "muted small" }, `  · ${n.created.slice(5, 16).replace("T", " ")} · imp ${n.importance}`));
+    if (!t.children.length) return h("div", { style: "margin:3px 0 3px 12px" }, label);
+    return h("details", { open: n.depth > 1 ? true : null }, h("summary", {}, label), t.children.map(node));
+  };
+  if (!forest.length) box.append(h("div", { class: "empty" }, "No reflections yet."));
+  for (const t of forest) box.append(node(t));
+  const runs = clear($("#refRuns"));
+  const mine = idx.reflections.filter((r) => r.agent === agent);
+  if (!mine.length) runs.append(h("div", { class: "muted" }, "None yet."));
+  for (const r of mine) {
+    runs.append(h("div", { style: "margin-bottom:10px" },
+      h("div", { class: "mono small" }, `${r.time?.slice(5, 16).replace("T", " ")} · trigger sum ${r.trigger_sum} · ${r.insights.length} insights`),
+      h("ul", { class: "small", style: "margin:4px 0" }, r.questions.map((q) => h("li", {}, q)))));
+  }
+}
+
+function renderDialogues() {
+  const who = $("#dlgAgent").value || null;
+  const convs = conversationsFor(idx, who).filter((c) => c.tick === null || c.tick <= ui.tick || !$("#follow").checked);
+  $("#dlgCount").textContent = `${convs.length} conversations`;
+  const list = clear($("#dlgList"));
+  for (const c of convs) {
+    list.append(h("div", { class: `li ${c.id === ui.selConv ? "on" : ""}`, onclick: () => { ui.selConv = c.id; renderDialogues(); } },
+      h("div", { class: "mono small muted" }, `${c.start?.slice(5, 16).replace("T", " ")} · ${c.place}`),
+      h("div", {}, c.participants.map(first).join(" & ")),
+      h("div", { class: "small muted" }, c.end?.topic_label || c.reason)));
+  }
+  const view = clear($("#dlgView"));
+  const c = idx.conversations.get(ui.selConv);
+  if (!c) { view.append(h("div", { class: "empty" }, "Pick a conversation.")); return; }
+  view.append(h("h2", {}, `${c.participants.join(" & ")} at ${c.place}`),
+    h("div", { class: "muted small" }, `${c.start} · started by ${c.initiator}: ${c.reason}`));
+  for (const t of c.turns) {
+    view.append(h("div", { class: `bubble ${t.speaker === c.initiator ? "" : "right"}` },
+      h("div", { class: "who" }, `${t.speaker} · ${fmtTime(t.time)}${t.end_conversation ? " · ends" : ""}`), t.text));
+  }
+  if (c.end) view.append(h("p", { class: "small" }, h("b", {}, "Summary: "), c.end.summary),
+    h("p", { class: "muted small" }, `${c.end.turns} lines · ended by ${c.end.ended_by} · ${c.end.duration_minutes} min`));
+  const commits = commitmentsFor(idx, c.id);
+  if (commits.length) view.append(h("h3", {}, "Commitments"), h("ul", { class: "small" }, commits.map((m) => h("li", {}, m.description))));
+}
+
+function renderCost() {
+  const u = usage(idx);
+  const total = u.total;
+  const k = clear($("#kpis"));
+  const tile = (v, l, cls = "") => h("div", { class: "card kpi" }, h("div", { class: `v ${cls}` }, v), h("div", { class: "l" }, l));
+  k.append(tile(money(total.cost + u.embedCost, 2), `spent of ${money(idx.run.budget || 0, 2)} budget`),
+    tile(total.calls.toLocaleString(), `LLM calls (${total.failed} failed attempts)`),
+    tile(`${(hitRate(total) * 100).toFixed(0)}%`, "input tokens served from cache"),
+    tile(String(idx.fallbacks.length), "fallbacks used", idx.fallbacks.length ? "warn" : ""));
+  drawSpend(u.series);
+  const tableFor = (el, groups) => {
+    const t = clear(el);
+    t.append(h("tr", {}, ["", "calls", "input", "output", "cache hit", "cost"].map((c, i) => h("th", { class: i ? "num" : "" }, c))));
+    for (const [name, b] of Object.entries(groups).sort((a, b) => b[1].cost - a[1].cost)) {
+      t.append(h("tr", {}, h("td", {}, name), h("td", { class: "num" }, b.calls), h("td", { class: "num" }, b.input.toLocaleString()),
+        h("td", { class: "num" }, b.output.toLocaleString()), h("td", { class: "num" }, `${(hitRate(b) * 100).toFixed(0)}%`),
+        h("td", { class: "num" }, money(b.cost))));
+    }
+  };
+  tableFor($("#byModel"), u.byModel);
+  tableFor($("#byTask"), u.byTask);
+  const fb = clear($("#fallbacks"));
+  if (!idx.fallbacks.length) fb.append(h("div", { class: "muted" }, "None: every call produced a valid result."));
+  for (const f of idx.fallbacks.slice(-50)) fb.append(h("div", { class: "small" }, h("span", { class: "warn" }, "⚠ "), `${fmtTime(f.time)} ${f.task} (${f.reason}) for ${f.agent || "-"}`));
+  const be = clear($("#budgetEvents"));
+  if (!idx.budget.length) be.append(h("div", { class: "muted" }, "None."));
+  for (const b of idx.budget) be.append(h("div", { class: "small" }, `${b.type}: spent ${money(b.spent_usd)} of ${money(b.limit_usd, 2)}${b.context ? " before " + b.context : ""}`));
+}
+
+function drawSpend(series) {
+  const box = clear($("#spendChart"));
+  box.append(h("h2", {}, "Cumulative spend over game time"));
+  if (series.length < 2) { box.append(h("div", { class: "empty" }, "Not enough calls yet.")); return; }
+  const W = 900, H = 240, L = 58, R = 16, T = 12, B = 28;
+  const t0 = series[0].time.getTime(), t1 = series[series.length - 1].time.getTime() || t0 + 1;
+  const maxC = series[series.length - 1].cost || 1;
+  const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
+  const y = (c) => T + (1 - c / maxC) * (H - T - B);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("role", "img"); svg.setAttribute("aria-label", `Cumulative spend, ending at ${money(maxC, 2)}`);
+  const el = (tag, attrs) => { const e = document.createElementNS(ns, tag); for (const [a, v] of Object.entries(attrs)) e.setAttribute(a, v); return e; };
+  for (let i = 0; i <= 4; i++) {
+    const c = (maxC * i) / 4;
+    svg.append(el("line", { x1: L, x2: W - R, y1: y(c), y2: y(c), stroke: "var(--grid)", "stroke-width": 1 }));
+    const lab = el("text", { x: L - 6, y: y(c) + 4, "text-anchor": "end", class: "axis" }); lab.textContent = money(c, 2); svg.append(lab);
+  }
+  const days = Math.max(1, Math.round((t1 - t0) / 864e5 * 4));
+  for (let i = 0; i <= days; i++) {
+    const t = t0 + ((t1 - t0) * i) / days;
+    if (i > 0 && i < days && (x(t) < L + 110 || x(t) > W - R - 110)) continue;   // keep clear of the end labels
+    const lab = el("text", { x: x(t), y: H - 8, "text-anchor": i === 0 ? "start" : i === days ? "end" : "middle", class: "axis" });
+    lab.textContent = new Date(t).toISOString().slice(5, 16).replace("T", " "); svg.append(lab);
+  }
+  // Step-down the points for drawing (a 2-day run has thousands of calls).
+  const stride = Math.max(1, Math.floor(series.length / 600));
+  const pts = series.filter((_, i) => i % stride === 0 || i === series.length - 1);
+  svg.append(el("path", { d: "M" + pts.map((p) => `${x(p.time.getTime()).toFixed(1)},${y(p.cost).toFixed(1)}`).join("L"),
+    fill: "none", stroke: "var(--series-1)", "stroke-width": 2, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }));
+  const hair = el("line", { y1: T, y2: H - B, stroke: "var(--text-3)", "stroke-width": 1, visibility: "hidden" });
+  const dot = el("circle", { r: 4, fill: "var(--series-1)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" });
+  svg.append(hair, dot);
+  const tip = h("div", { class: "tip" });
+  const hit = el("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" });
+  hit.addEventListener("pointermove", (ev) => {
+    const rect = svg.getBoundingClientRect();
+    const t = t0 + ((ev.clientX - rect.left) / rect.width * W - L) / (W - L - R) * (t1 - t0);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.time - t) < Math.abs(best.time - t)) best = p;
+    const px = x(best.time.getTime()), py = y(best.cost);
+    hair.setAttribute("x1", px); hair.setAttribute("x2", px); hair.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("visibility", "visible");
+    tip.textContent = `${best.time.toISOString().slice(5, 16).replace("T", " ")} · ${money(best.cost, 3)}`;
+    tip.style.display = "block";
+    tip.style.left = `${(px / W) * rect.width + 12}px`; tip.style.top = `${(py / H) * rect.height + 30}px`;
+  });
+  hit.addEventListener("pointerleave", () => { hair.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.style.display = "none"; });
+  svg.append(hit);
+  box.append(svg, tip);
+}
+
+let presetsLoaded = false;
+async function renderInterview() {
+  if (!presetsLoaded) {
+    presetsLoaded = true;
+    const presets = await getJSON("/api/presets").catch(() => ({}));
+    const sel = $("#ivPreset");
+    for (const [cat, qs] of Object.entries(presets)) {
+      sel.append(h("optgroup", { label: cat.replace("_", " ") }, qs.map((q) => h("option", { value: q }, q))));
+    }
+  }
+  const hist = clear($("#ivHistory"));
+  const items = await getJSON(`/api/runs/${runId}/interviews`).catch(() => []);
+  if (!items.length) hist.append(h("div", { class: "muted" }, "None yet."));
+  for (const e of items.slice().reverse().slice(0, 30)) {
+    hist.append(h("div", { style: "margin-bottom:8px" }, h("b", {}, `${e.agent}: `), `“${e.data.question}”`, h("br"),
+      h("span", { class: "muted" }, e.data.answer)));
+  }
+}
+
+async function ask() {
+  const agent = $("#ivAgent").value, question = $("#ivQ").value.trim();
+  if (!agent || !question) return;
+  const others = idx.agentNames.filter((n) => n !== agent);
+  const q = question.replaceAll("[Name]", others[0] || "someone");
+  const btn = $("#ivAsk"); btn.disabled = true; $("#ivNote").textContent = "thinking…";
+  const out = clear($("#ivResult"));
+  try {
+    const r = await getJSON(`/api/runs/${runId}/interview`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agent, question: q, tick: +$("#ivTick").value }) });
+    out.append(h("div", { class: "muted small" }, `${r.agent} at ${r.game_time.replace("T", " ")} (${r.checkpoint})${r.stub ? " · stub model" : ""}`),
+      h("p", {}, h("b", {}, "Q: "), r.question), h("p", { class: "answer" }, h("b", {}, "A: "), r.answer),
+      h("h3", {}, "Cited memories"),
+      r.cited.length ? h("ul", { class: "small" }, r.cited.map((c) => h("li", {}, h("span", { class: "ev" }, c.node_id.split(":")[1]), c.text)))
+                     : h("div", { class: "muted small" }, "none"));
+    $("#ivNote").textContent = r.stub ? "stub answer (no cost)" : `cost ${money(r.cost_usd)}; viewer total ${money(r.session_spent_usd)}`;
+    renderInterview();
+  } catch (err) {
+    out.append(h("div", { class: "warn" }, String(err.message || err)));
+    $("#ivNote").textContent = "";
+  } finally { btn.disabled = false; }
+}
+
+async function renderReport() {
+  const box = clear($("#reportView"));
+  let r;
+  try { r = await getJSON(`/api/runs/${runId}/report`); }
+  catch { box.append(h("div", { class: "empty" }, "No report yet: it is written when the run ends.")); return; }
+  box.append(h("div", { class: "card", style: "margin-bottom:14px" }, h("h2", {}, `Report: ${r.scenario}`),
+    h("div", { class: "muted small" }, `ended ${r.ended_at} · ${r.run?.reason || ""} · ${r.interviews ? "agents interviewed and judged" : "memory evidence only (no interviews)"}`),
+    r.stopped ? h("div", { class: "warn small" }, r.stopped) : null));
+  for (const [id, f] of Object.entries(r.facts)) {
+    const t = h("table", {}, h("tr", {}, ["agent", "knows", "grounded", "hallucinated", "heard from", "answer"].map((c) => h("th", {}, c))));
+    for (const [name, a] of Object.entries(f.agents)) {
+      t.append(h("tr", {}, h("td", {}, name), h("td", {}, a.knows ? "yes" : "no"), h("td", {}, a.grounded ? "yes" : "no"),
+        h("td", { class: a.hallucinated ? "warn" : "" }, a.hallucinated ? "yes" : "no"),
+        h("td", {}, a.origin ? "(origin)" : a.evidence?.heard_from || (a.evidence ? a.evidence.subtype : "-")),
+        h("td", { class: "small" }, a.answer || "")));
+    }
+    box.append(h("div", { class: "card", style: "margin-bottom:14px" }, h("h2", {}, `${id}: “${f.question}”`),
+      h("p", {}, `Knew at the end: `, h("b", {}, `${f.knew} of ${Object.keys(f.agents).length} (${f.knew_pct}%)`), ` · origin ${f.origin}`), t));
+  }
+  const rel = r.relationships;
+  const line = (label, x) => h("li", {}, `${label}: `, x ? h("b", {}, `density ${x.density}`) : "not measured",
+    x ? ` (${x.edges.map(([a, b]) => `${first(a)}–${first(b)}`).join(", ") || "no edges"})` : "");
+  box.append(h("div", { class: "card", style: "margin-bottom:14px" }, h("h2", {}, "Relationships (paper §7.1)"),
+    h("ul", {}, line("start", rel.start), line("end", rel.end))));
+  for (const [id, c] of Object.entries(r.coordination)) {
+    box.append(h("div", { class: "card", style: "margin-bottom:14px" }, h("h2", {}, `${id}: ${c.what}`),
+      h("div", { class: "muted small" }, `${c.start} → ${c.end} at ${c.place}${c.happened ? "" : " (run ended before it finished)"}`),
+      h("ul", {}, h("li", {}, "Present: ", Object.entries(c.attendees).map(([n, m]) => `${n} (${m} min)`).join(", ") || "nobody"),
+        h("li", {}, "Knew and attended: ", c.knew_and_attended.join(", ") || "none"),
+        h("li", {}, "Knew but absent: ", c.knew_but_absent.join(", ") || "none")),
+      Object.keys(c.followups).length ? h("ul", { class: "small" }, Object.entries(c.followups).map(([n, a]) => h("li", {}, `${n}: “${a}”`))) : null));
+  }
+}
+
+// ---------- wiring ----------
+function switchTab(name) {
+  tab = name;
+  for (const b of document.querySelectorAll("#tabs button")) b.classList.toggle("on", b.dataset.tab === name);
+  for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === `p-${name}`);
+  render();
+}
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+$("#runSel").addEventListener("change", (e) => openRun(e.target.value));
+$("#tick").addEventListener("input", (e) => {
+  ui.tick = +e.target.value;
+  $("#follow").checked = ui.tick === idx.maxTick;
+  const t = gameTime(idx, ui.tick);
+  if (t && tab === "timeline") $("#daySel").value = t.toISOString().slice(0, 10);
+  render();
+});
+for (const id of ["#daySel", "#showBrief", "#memAgent", "#memSub", "#memSort", "#memAsOf", "#refAgent", "#dlgAgent"]) {
+  $(id).addEventListener("change", render);
+}
+document.querySelectorAll(".memType").forEach((c) => c.addEventListener("change", render));
+$("#memSearch").addEventListener("input", render);
+$("#ivPreset").addEventListener("change", (e) => { if (e.target.value) $("#ivQ").value = e.target.value; });
+$("#ivAsk").addEventListener("click", ask);
+loadRuns().catch((err) => { document.querySelector("main").prepend(h("div", { class: "card warn" }, String(err))); });
+</script>
+</body>
+</html>

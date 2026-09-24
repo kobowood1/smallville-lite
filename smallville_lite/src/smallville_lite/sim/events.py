@@ -267,6 +267,13 @@ class LLMFallbackData(_Data):
     used: str
 
 
+class ReportData(_Data):
+    path: str
+    facts: dict[str, int]
+    density: dict[str, float | None]
+    attendees: dict[str, list[str]]
+
+
 EVENT_MODELS: dict[str, type[BaseModel]] = {
     "llm_call": LLMCallData,
     "embed_call": EmbedCallData,
@@ -296,6 +303,7 @@ EVENT_MODELS: dict[str, type[BaseModel]] = {
     "conversation_ended": ConversationEndedData,
     "interview": InterviewData,
     "llm_fallback": LLMFallbackData,
+    "report": ReportData,
 }
 
 COST_EVENT_TYPES = frozenset({"llm_call", "embed_call", "budget_warning", "budget_exhausted"})
@@ -401,6 +409,11 @@ def read_events(path: str | Path) -> Iterator[dict[str, Any]]:
             line = line.strip()
             if line:
                 events.append(json.loads(line))
+    yield from filter_superseded(events)
+
+
+def filter_superseded(events: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+    """Drop non-cost events of earlier segments at or after a later segment's resume tick."""
     resume_from: dict[int, int] = {}
     for e in events:
         if e["type"] == "run_resumed":

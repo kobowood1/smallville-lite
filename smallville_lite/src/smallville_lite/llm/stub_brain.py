@@ -202,12 +202,17 @@ def make_responders(facts: Sequence[Mapping[str, Any]], events: Sequence[Mapping
         mem = req.hints["memories"]
         return {"answer": mem[0] if mem else "I don't know.", "cited": [1] if mem else []}
 
+    def judge(req: BackendRequest, rng: random.Random) -> dict:
+        answer = req.hints["answer"].lower()
+        hit = any(k.lower() in answer for k in req.hints["keywords"]) and not answer.startswith("i don't know")
+        return {"knows": hit, "reason": "stub: keyword match" if hit else "stub: no keyword"}
+
     return {
         "importance": importance, "label_actions": label_actions, "react": react, "relationship": relationship,
         "summarize_dialogue": summarize_dialogue, "plan_day": plan_day, "plan_hours": plan_blocks,
         "replan": plan_blocks, "plan_detail": plan_detail, "recap_day": recap_day,
         "reflect_questions": reflect_questions, "reflect_insights": reflect_insights, "summary": summary,
-        "utterance": utterance, "conversation_note": conversation_note, "interview": interview,
+        "utterance": utterance, "conversation_note": conversation_note, "interview": interview, "judge": judge,
     }
 
 

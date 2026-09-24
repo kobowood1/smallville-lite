@@ -18,7 +18,7 @@ dependencies = [
 local = ["sentence-transformers>=3.0"]
 voyage = ["voyageai>=0.3"]
 web = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 smallville = "smallville_lite.cli:main"
@@ -27,7 +27,7 @@ smallville = "smallville_lite.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-smallville_lite = ["llm/prompts/*.md"]
+smallville_lite = ["llm/prompts/*.md", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

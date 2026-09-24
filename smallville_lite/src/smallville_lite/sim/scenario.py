@@ -87,13 +87,19 @@ def scenario_config(scenario: Scenario, config_dir: str | Path | None = None, ov
     return load_config(config_dir, overrides=merged)
 
 
-def build_simulation(scenario: Scenario, config: Config, log: EventLog, *, embed_cache_path: str | None = "config"):
-    """Wire the model layer, world, and agents; seed memories (paper §3.1). Returns a Simulation at tick 0."""
+def wire_simulation(
+    scenario: Scenario,
+    config: Config,
+    log: EventLog,
+    *,
+    embed_cache_path: str | None = "config",
+    call_id_prefix: str = "c",
+):
+    """Model layer + world + empty agents, with no events and no memories. Shared by build and restore."""
     from ..cognition import Mind
-    from ..cognition.importance import score_importance
     from .engine import Simulation
 
-    llm = build_llm(config, sink=log)
+    llm = build_llm(config, sink=log, call_id_prefix=call_id_prefix)
     if config.stub:
         from ..llm.stub_brain import make_responders
 
@@ -106,6 +112,20 @@ def build_simulation(scenario: Scenario, config: Config, log: EventLog, *, embed
     mind.now = scenario.start
     state = WorldState.initial(scenario.world)
     agents: list[Agent] = []
+    for ident in scenario.identities:
+        agent = Agent(ident, MemoryStream(ident.name, embedder, sink=log), retention=config.sim.retention)
+        agents.append(agent)
+        mind.agents[ident.name] = agent
+    return Simulation(mind, agents, state, log)
+
+
+def build_simulation(scenario: Scenario, config: Config, log: EventLog, *, embed_cache_path: str | None = "config",
+                     call_id_prefix: str = "c"):
+    """Wire everything, emit world/agent init events, and seed memories (paper §3.1). Returns a Simulation at tick 0."""
+    from ..cognition.importance import score_importance
+
+    sim = wire_simulation(scenario, config, log, embed_cache_path=embed_cache_path, call_id_prefix=call_id_prefix)
+    mind, state = sim.mind, sim.state
     log.set_time(None, scenario.start)
     log.emit("world_init", {
         "town": scenario.world.name,
@@ -114,10 +134,8 @@ def build_simulation(scenario: Scenario, config: Config, log: EventLog, *, embed
         "travel_ticks_default": scenario.world.travel_default,
         "tick_minutes": config.sim.tick_minutes, "start": scenario.start.isoformat(),
     })
-    for ident in scenario.identities:
-        agent = Agent(ident, MemoryStream(ident.name, embedder, sink=log), retention=config.sim.retention)
-        agents.append(agent)
-        mind.agents[ident.name] = agent
+    for agent in sim.agents.values():
+        ident = agent.identity
         place = scenario.world.place_of(ident.start)
         state.positions[ident.name] = Position(place=place, area=ident.start if ident.start != place else None)
         agent.scratch.visited.add(place)
@@ -131,7 +149,7 @@ def build_simulation(scenario: Scenario, config: Config, log: EventLog, *, embed
         # Seed memories are the starting point, not a trigger for an immediate reflection.
         agent.memory.reset_reflection_accumulator()
     log.commit_tick()
-    return Simulation(mind, agents, state, log)
+    return sim
 
 
 def _tree(node) -> dict[str, Any]:

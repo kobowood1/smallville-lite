@@ -9,7 +9,7 @@ participants for its duration, so one agent can never be in two conversations at
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from ..agent import Agent, CurrentAction
 from ..cognition.converse import converse
@@ -33,6 +33,8 @@ class Simulation:
         self.log = log
         self.tick = tick
         self._conv_counter = 0
+        # Called after every committed tick (and after a night skip); the runner saves a checkpoint here.
+        self.on_commit: Callable[["Simulation"], None] | None = None
 
     @property
     def clock(self):
@@ -51,6 +53,8 @@ class Simulation:
                 self.log.emit("time_skipped", {"from_tick": self.tick, "to_tick": skip_to, "reason": "all_asleep"})
                 self.log.commit_tick()
                 self.tick = skip_to
+                if self.on_commit:
+                    self.on_commit(self)
                 continue
             self.step()
 
@@ -65,6 +69,8 @@ class Simulation:
             raise
         self.log.commit_tick()
         self.tick += 1
+        if self.on_commit:
+            self.on_commit(self)
 
     # ------------------------------------------------------------------
     def _tick(self, now: datetime) -> None:
@@ -167,7 +173,25 @@ class Simulation:
         if current is None or current.id != action.id:
             self._emit_skipped_steps(agent, action, now)
             self._set_action(agent, action, now)
-        self._move_if_needed(agent, action, now)
+        if not self._depart_early(agent, action, now):
+            self._move_if_needed(agent, action, now)
+
+    def _depart_early(self, agent: Agent, action: CurrentAction, now: datetime) -> bool:
+        """Leave in time to arrive when the next action at another place starts (instead of one trip late)."""
+        pos = self.state.positions[agent.name]
+        if pos.in_transit or pos.place != action.place:
+            return False
+        world = self.mind.world
+        horizon = max([world.travel_default, *world.travel.values()])
+        for k in range(1, horizon + 1):
+            future = resolve_action(self.mind, agent, now + self.clock.step * k)
+            if future.place == pos.place or future.kind == "chat":
+                continue
+            if world.travel_ticks(pos.place, future.place) >= k:
+                self._start_travel(agent, future.place)
+                return True
+            return False
+        return False
 
     def _emit_skipped_steps(self, agent: Agent, action: CurrentAction, now: datetime) -> None:
         """Steps shorter than a tick still get an action_started event at their exact time."""
@@ -217,11 +241,15 @@ class Simulation:
         pos = self.state.positions[agent.name]
         if pos.in_transit or pos.place == action.place:
             return
-        ticks = self.mind.world.travel_ticks(pos.place, action.place)
-        pos.transit = Transit(origin=pos.place, destination=action.place, depart_tick=self.tick, arrive_tick=self.tick + ticks)
+        self._start_travel(agent, action.place)
+
+    def _start_travel(self, agent: Agent, destination: str) -> None:
+        pos = self.state.positions[agent.name]
+        ticks = self.mind.world.travel_ticks(pos.place, destination)
+        pos.transit = Transit(origin=pos.place, destination=destination, depart_tick=self.tick, arrive_tick=self.tick + ticks)
         self.state.actions[agent.name] = ActionState(
-            action_id=f"travel-{self.tick}-{agent.name}", description=f"{agent.name} is on the way to {action.place}",
-            activity=f"on the way to {action.place}", emoji="🚶", label="walking", kind="travel",
+            action_id=f"travel-{self.tick}-{agent.name}", description=f"{agent.name} is on the way to {destination}",
+            activity=f"on the way to {destination}", emoji="🚶", label="walking", kind="travel",
         )
         self.log.emit("move_started", {"from": pos.transit.origin, "to": pos.transit.destination,
                                        "depart_tick": pos.transit.depart_tick, "arrive_tick": pos.transit.arrive_tick},

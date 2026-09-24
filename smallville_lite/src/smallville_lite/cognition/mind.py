@@ -70,9 +70,10 @@ class Mind:
         types: Iterable[str] | None = None,
         exclude_subtypes: Iterable[str] = (),
         purpose: str = "",
+        update_access: bool = True,
     ) -> list[ScoredMemory]:
         return retrieve(agent.memory, query, self.time(), self.weights, k=k or self.sim.top_k, types=types,
-                        exclude_subtypes=exclude_subtypes, purpose=purpose)
+                        exclude_subtypes=exclude_subtypes, purpose=purpose, update_access=update_access)
 
     def fallback(self, task: str, agent: "Agent | None", reason: str, used: Any) -> None:
         """Record that a deterministic fallback replaced a failed LLM result."""

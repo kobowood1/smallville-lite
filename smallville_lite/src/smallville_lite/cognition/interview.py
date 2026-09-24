@@ -32,7 +32,9 @@ class InterviewResult:
 
 def interview(mind: Mind, agent: "Agent", question: str, now: datetime, *, remember: bool | None = None,
               source: str = "cli") -> InterviewResult:
-    retrieved = mind.retrieve(agent, question, k=mind.sim.interview_retrieve_k, purpose="interview")
+    # Interviews observe the agent without changing it: no last-accessed updates (paper §6 evaluation setting).
+    retrieved = mind.retrieve(agent, question, k=mind.sim.interview_retrieve_k, purpose="interview",
+                              update_access=False)
     prompt = load_prompt("interview")
     try:
         out = mind.llm.call(

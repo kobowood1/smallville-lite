@@ -14,3 +14,4 @@ __pycache__/
 runs/
 .cache/
 *.egg-info/
+.playwright-mcp/
