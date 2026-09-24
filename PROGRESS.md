@@ -57,7 +57,7 @@ _Last updated: 2026-09-24_
   original repo for kept prompt wording. `pyproject.toml` declares `license = "Apache-2.0"` (needs setuptools>=77).
 - **Replay page:** https://claude.ai/artifact/7PTcwL9qRDNCm51DCQnAvq, a static read-only copy of the viewer showing the
   `party-demo` stub run.
-  - It's **private until the owner turns on link sharing** from the page's Share menu. The top-level README links to it.
+  - Link sharing is on (turned on by the owner on 2026-09-24), so the README's link works for anyone.
   - Made with `smallville_lite/scripts/export_artifact.py runs/<id> <out_dir>`. The script saves the run's API
     responses through the real FastAPI app and bundles them with a fetch shim. Live mode and new interviews are off, and
     `scenario_dir` (a local path) is left out.
