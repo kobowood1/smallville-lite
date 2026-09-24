@@ -1,0 +1,15 @@
+# Third-party reference clone (read-only, not vendored)
+reference/
+
+# Paper PDF (large binary; kept on disk only)
+generative_agents.pdf
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Run output / caches
+runs/
+.cache/
