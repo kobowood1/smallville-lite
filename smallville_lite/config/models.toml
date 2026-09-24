@@ -1,0 +1,176 @@
+# Model layer configuration: which model runs each task, per-task limits, and prices.
+#
+# Model IDs and prices verified 2026-09-23 against
+#   https://platform.claude.com/docs/en/about-claude/models/overview
+#   https://platform.claude.com/docs/en/about-claude/pricing
+# Run `smallville check-models` to re-verify IDs against the live Models API.
+# Prices are USD per million tokens.
+
+[llm]
+max_retries = 2          # SDK-level retries for 408/409/429/5xx/connection errors
+repair_attempts = 1      # re-asks after the output fails semantic validation
+chars_per_token = 3.0    # conservative estimate used only for pre-call budget checks
+cache_ttl = "5m"         # "5m" or "1h"; see DESIGN §6.3
+request_timeout_s = 120
+log_prompts = false      # include full prompt/response text in llm_call events (always on in stub mode)
+
+# ---------------------------------------------------------------------------
+# Models
+#   thinking_modes: which `thinking` settings a task may request for this model
+#     "adaptive" -> {"type": "adaptive"};  "disabled" -> {"type": "disabled"};  "none" -> omit the param
+#   Sonnet 5 runs adaptive thinking when the param is omitted, so its tasks must choose explicitly.
+#   Haiku 4.5 only has budget-based extended thinking, which this project does not use.
+
+[models."claude-sonnet-5"]
+input = 2.00
+output = 10.00
+cache_write_5m = 2.50
+cache_write_1h = 4.00
+cache_read = 0.20
+min_cache_tokens = 1024
+supports_temperature = false   # sampling parameters are rejected on Sonnet 5
+supports_effort = true
+thinking_modes = ["adaptive", "disabled"]
+
+[models."claude-haiku-4-5-20251001"]
+# Docs list retirement "not sooner than October 15, 2026"; swap the task routes below if it is retired.
+input = 1.00
+output = 5.00
+cache_write_5m = 1.25
+cache_write_1h = 2.00
+cache_read = 0.10
+min_cache_tokens = 4096        # short Haiku prompts will not cache; we batch instead
+supports_temperature = true
+supports_effort = false
+thinking_modes = ["none"]
+
+# ---------------------------------------------------------------------------
+# Task routing (DESIGN §6.1). max_tokens includes thinking tokens when thinking is adaptive.
+# max_tokens_cap: one automatic retry with a larger limit if a response stops at max_tokens.
+
+# Haiku: short, high-volume classification / extraction
+[tasks.importance]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 400
+temperature = 0.0
+
+[tasks.label_actions]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 800
+temperature = 0.3
+
+[tasks.react]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 500
+temperature = 0.0
+
+[tasks.relationship]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 400
+temperature = 0.3
+
+[tasks.summarize_dialogue]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 500
+temperature = 0.0
+
+[tasks.judge]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 300
+temperature = 0.0
+
+[tasks.ping]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 50
+temperature = 0.0
+
+# Sonnet: planning, reflection, dialogue
+[tasks.plan_day]
+model = "claude-sonnet-5"
+max_tokens = 4000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.plan_hours]
+model = "claude-sonnet-5"
+max_tokens = 4000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.plan_detail]
+model = "claude-sonnet-5"
+max_tokens = 3000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.replan]
+model = "claude-sonnet-5"
+max_tokens = 4000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.recap_day]
+model = "claude-sonnet-5"
+max_tokens = 800
+thinking = "disabled"
+
+[tasks.reflect_questions]
+model = "claude-sonnet-5"
+max_tokens = 3000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.reflect_insights]
+model = "claude-sonnet-5"
+max_tokens = 4000
+thinking = "adaptive"
+effort = "low"
+
+[tasks.summary]
+model = "claude-sonnet-5"
+max_tokens = 1200
+thinking = "disabled"
+
+[tasks.utterance]
+model = "claude-sonnet-5"
+max_tokens = 400
+thinking = "disabled"
+
+[tasks.conversation_note]
+model = "claude-sonnet-5"
+max_tokens = 800
+thinking = "disabled"
+
+[tasks.interview]
+model = "claude-sonnet-5"
+max_tokens = 800
+thinking = "disabled"
+
+[tasks.ping_sonnet]
+model = "claude-sonnet-5"
+max_tokens = 50
+thinking = "disabled"
+
+# ---------------------------------------------------------------------------
+# Embedding models. price is USD per million input tokens (list price; free tiers ignored).
+# Voyage models/prices verified 2026-09-23 against docs.voyageai.com.
+
+[embedding_models."all-MiniLM-L6-v2"]
+provider = "local"
+dim = 384
+price = 0.0
+
+[embedding_models."voyage-4-lite"]
+provider = "voyage"
+dim = 1024
+price = 0.02
+
+[embedding_models."voyage-4"]
+provider = "voyage"
+dim = 1024
+price = 0.06
+
+[embedding_models."stub-hash-256"]
+provider = "stub"
+dim = 256
+price = 0.0

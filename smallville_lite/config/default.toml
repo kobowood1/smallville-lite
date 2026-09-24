@@ -1,0 +1,23 @@
+# Simulation defaults. Phase 2 uses [run], [budget], and [embedding];
+# later phases add time, retrieval, reflection, planning, and dialogue sections.
+# API keys are never read from config: set ANTHROPIC_API_KEY / VOYAGE_API_KEY in the environment.
+
+[run]
+seed = 7
+stub = false            # true = FakeLLM + stub embeddings, zero network, zero spend
+
+[budget]
+max_usd = 5.00          # hard stop, checked before every paid call
+warn_fraction = 0.8     # emit one budget_warning when spend crosses this fraction
+
+[embedding]
+provider = "local"      # "local" (sentence-transformers, $0), "voyage", or "stub"
+local_model = "all-MiniLM-L6-v2"
+voyage_model = "voyage-4-lite"
+stub_model = "stub-hash-256"
+cache_path = ".cache/embeddings.sqlite"
+batch_size = 64
+
+[summary]
+# When the cached App. A agent summary (the prompt-cache prefix) is regenerated.
+refresh_on = ["reflection", "new_day"]

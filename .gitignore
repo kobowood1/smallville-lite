@@ -13,3 +13,4 @@ __pycache__/
 # Run output / caches
 runs/
 .cache/
+*.egg-info/
