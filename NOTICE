@@ -1,0 +1,12 @@
+smallville-lite
+Copyright 2026 kobowood1
+
+This project reimplements "Generative Agents: Interactive Simulacra of Human Behavior"
+(Park et al., UIST 2023). It contains no code from the original implementation, but some
+prompts keep the wording of the paper or of the original implementation for their core
+instruction:
+
+  joonspk-research/generative_agents
+  https://github.com/joonspk-research/generative_agents
+  Copyright 2023 Joon Sung Park
+  Licensed under the Apache License, Version 2.0

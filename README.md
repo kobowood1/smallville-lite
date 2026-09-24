@@ -29,6 +29,7 @@ conversation in the side panel](docs/replay-town.png)](https://claude.ai/artifac
 - [Project status](#project-status)
 - [Sharing a replay](#sharing-a-replay)
 - [Credits](#credits)
+- [License](#license)
 
 ## What it does
 
@@ -237,3 +238,7 @@ local file paths. The page's note describes a stub run, so edit `NOTE` in the sc
   which [ARCHITECTURE.md](ARCHITECTURE.md) maps in detail. None of its code is included here. Some prompts keep the
   paper's or the original's wording for the core instruction ([DESIGN.md §9](DESIGN.md#9-prompts-port-or-rewrite)).
   The agent names and the party scenario come from the paper.
+
+## License
+
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution.
