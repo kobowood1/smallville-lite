@@ -7,6 +7,9 @@ A text-only reimplementation of *Generative Agents: Interactive Simulacra of Hum
 **Status:** Phases 2 (model layer + cost controls), 3 (cognitive core), 4 (runner, checkpoint/resume, report,
 web log) and 5 (visual town, replay + live) are done.
 
+**Replay:** [watch a 2-day stub run in the browser](https://claude.ai/artifact/7PTcwL9qRDNCm51DCQnAvq). The top-level
+[README](../README.md) gives the project overview.
+
 ## Setup
 
 ```bash
@@ -138,3 +141,16 @@ The viewer's **Town** tab replays a run, or follows a live one, as an animated m
   `smallville run --stub --days 2 --budget 5 --pace 0.4` in one terminal, `smallville serve` in another.
 - **Tests:** the scene model (`web/static/scene.js`: interpolation, bubbles, plans, skips) has Node unit tests in
   `tests/js/`, run by `pytest` through `tests/test_js.py` (skipped if `node` is not installed).
+
+## Sharing a replay
+
+`scripts/export_artifact.py` turns one run into a static copy of the viewer that needs no server. It saves the run's API
+responses through the real FastAPI app and bundles them with the page and its JS modules. A small fetch shim then
+answers `/api/...` from those files.
+
+```bash
+.venv/Scripts/python scripts/export_artifact.py runs/<id> <out_dir>
+```
+
+Live mode and new interviews are off in the export, and local file paths are left out of the bundled metadata. The
+page's note describes a stub run, so edit `NOTE` in the script before exporting a real one.
