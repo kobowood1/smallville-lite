@@ -44,6 +44,8 @@ class BackendRequest:
     effort: str | None = None
     temperature: float | None = None
     attempt: int = 1
+    # Structured context for the STUB backend only; never sent to the API.
+    hints: dict[str, Any] | None = None
 
 
 @dataclass

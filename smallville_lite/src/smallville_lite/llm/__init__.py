@@ -23,6 +23,7 @@ def build_llm(
         backend = FakeBackend(
             seed=config.seed,
             min_cache_tokens={m.id: m.min_cache_tokens for m in config.models.values()},
+            chars_per_token={m.id: m.chars_per_token for m in config.models.values()},
         )
         return LLMClient(config, backend, budget=budget, sink=sink, call_id_prefix=call_id_prefix, log_prompts=True)
     from .backend_anthropic import AnthropicBackend

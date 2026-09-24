@@ -1,0 +1,33 @@
+# The party scenario: one agent plans a party, another has news (paper §7.1).
+
+name = "party"
+description = "Isabella plans a Valentine's Day party at Hobbs Cafe; Sam is running for mayor. Do both spread?"
+start = "2023-02-13T06:00:00"
+days = 2
+world = "world.toml"
+agents = "agents.toml"
+
+# Deep-merged over config/default.toml.
+[config.reflection]
+threshold = 75          # 4 agents on 10-minute ticks see far fewer events than 25 agents on 10-second steps
+
+# Ground truth for the post-run report (DESIGN §7).
+[[facts]]
+id = "party"
+origin = "Isabella Rodriguez"
+question = "Did you know there is a Valentine's Day party?"
+keywords = ["valentine", "party"]
+
+[[facts]]
+id = "mayor"
+origin = "Sam Moore"
+question = "Do you know who is running for mayor?"
+keywords = ["mayor", "election", "candidacy"]
+
+[[events]]
+id = "party"
+fact = "party"
+what = "attend the Valentine's Day party at Hobbs Cafe"
+place = "Hobbs Cafe"
+start = "2023-02-14T17:00:00"
+end = "2023-02-14T19:00:00"

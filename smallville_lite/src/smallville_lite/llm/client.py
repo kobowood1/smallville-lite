@@ -69,6 +69,7 @@ class LLMClient:
         validate: Validator | None = None,
         prompt_id: str | None = None,
         max_tokens: int | None = None,
+        hints: dict[str, Any] | None = None,
     ) -> LLMResult[T]:
         spec = self.config.task(task)
         model = self.config.models[spec.model]
@@ -97,6 +98,7 @@ class LLMClient:
                 effort=spec.effort,
                 temperature=spec.temperature,
                 attempt=attempt,
+                hints=hints,
             )
             estimate = worst_case_cost(model, request_chars(system, req.messages, schema), limit, self.config.llm.chars_per_token)
             self.budget.check(estimate, context=f"{task}{' for ' + agent if agent else ''}")

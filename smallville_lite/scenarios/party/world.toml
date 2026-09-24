@@ -1,0 +1,74 @@
+# Location tree for the party scenario (DESIGN §2.1). Town -> places -> optional areas -> objects.
+# Only moves between top-level places take time.
+
+[town]
+name = "Smallville"
+travel_ticks_default = 1
+
+[[places]]
+name = "Hobbs Cafe"
+public = true
+description = "A cozy neighborhood cafe, open 7am to 8pm."
+  [[places.areas]]
+  name = "cafe floor"
+  objects = [
+    { name = "counter", state = "idle" },
+    { name = "espresso machine", state = "off" },
+    { name = "tables", state = "idle" },
+    { name = "bulletin board", state = "empty" },
+  ]
+  [[places.areas]]
+  name = "Isabella's apartment"
+  objects = ["bed", "desk", "kitchenette"]
+
+[[places]]
+name = "Johnson Park"
+public = true
+description = "A small public park with a community garden."
+objects = [
+  { name = "garden beds", state = "tidy" },
+  "bench",
+  "pond path",
+]
+
+[[places]]
+name = "The Willows Market"
+public = true
+description = "The town grocery and general store, open 8am to 6pm."
+objects = [
+  { name = "shelves", state = "stocked" },
+  "checkout counter",
+  { name = "community notice board", state = "a few old flyers" },
+]
+
+[[places]]
+name = "Oak Hill College Library"
+public = true
+description = "The college library, open 8am to 10pm."
+objects = ["reading tables", "bookshelves", "study carrels"]
+
+[[places]]
+name = "Oak Hill Dorm"
+description = "A student dormitory."
+  [[places.areas]]
+  name = "Maria's room"
+  objects = ["bed", "desk"]
+  [[places.areas]]
+  name = "Klaus's room"
+  objects = ["bed", "desk"]
+  [[places.areas]]
+  name = "common room"
+  objects = ["sofa", { name = "TV", state = "off" }]
+
+[[places]]
+name = "Moore House"
+description = "Sam Moore's small house on Maple Street."
+  [[places.areas]]
+  name = "bedroom"
+  objects = ["bed"]
+  [[places.areas]]
+  name = "kitchen"
+  objects = [{ name = "stove", state = "off" }, "fridge"]
+  [[places.areas]]
+  name = "living room"
+  objects = ["armchair", "bookshelf"]

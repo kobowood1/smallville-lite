@@ -4,7 +4,8 @@ A text-only reimplementation of *Generative Agents: Interactive Simulacra of Hum
 (Park et al., UIST 2023) on the Claude API. See `../ARCHITECTURE.md` (map of the original) and
 `../DESIGN.md` (this project's design).
 
-**Status:** Phase 2 (model layer + cost controls) is done. The cognitive core is Phase 3, and the runner and web log are Phase 4.
+**Status:** Phases 2 (model layer + cost controls) and 3 (cognitive core) are done. The CLI runner, checkpoint/resume,
+report, and web log are Phase 4.
 
 ## Setup
 
@@ -56,3 +57,22 @@ Every LLM call goes through `LLMClient.call(task, output=PydanticModel, user=...
   `sha256(provider|model|kind|text)`.
 - **STUB mode** (`[run].stub = true` or `--stub`) swaps in a deterministic fake LLM and fake embeddings. It simulates prompt
   caching with each model's real minimum length and prices usage with the real table, so budget and usage code runs for $0.
+  `llm/stub_brain.py` makes the fake scenario-aware, so a stub run exercises every mechanism: plans honour commitments,
+  agents meet, news spreads, and invitations become commitments.
+
+## Cognitive core (Phase 3)
+
+| Module | Paper | What it does |
+|---|---|---|
+| `memory/stream.py`, `memory/retrieval.py` | §4.1 | Observation / reflection / plan nodes with created and last-accessed times, importance, embedding, and evidence. Retrieval = recency (0.995 per game-hour since last access) + importance + relevance (cosine), each min-max normalized, with configurable weights; it updates last-accessed |
+| `cognition/perceive.py`, `importance.py` | §4.1, §5 | Observations at the agent's place (self, others, objects in unusual states), retention and attention caps, one batched importance call per agent per tick |
+| `cognition/reflect.py` | §4.2 | Triggered when accumulated observation importance reaches `[reflection].threshold`: 3 questions from the 100 most recent records, retrieval per question, insights citing numbered evidence, reflection trees |
+| `cognition/plan.py` | §4.3, App. A | Day plan (5-8 items), then contiguous hour blocks at known places, then 5/10/15-minute steps decomposed just in time. Replanning from *now* |
+| `cognition/react.py` | §4.3.1 | "Should X react, and if so, how?" over salient observations, using the paper's two retrieval queries: talk or change plan. Objects can trigger reactions |
+| `cognition/converse.py` | §4.3.2 | Turn-by-turn: each line conditioned on the speaker's summary, relationship view, memories retrieved for the last line, and the transcript. Either side can end. Afterwards: dialogue memories, notes, commitments |
+| `cognition/summary.py` | App. A | Cached agent summary from three retrievals; the tail of the prompt-cache prefix |
+| `cognition/interview.py` | §6, App. B | Retrieval-grounded answers; the 25 App. B questions in `scenarios/_shared/interview_presets.toml` |
+| `sim/engine.py` | §5 | Two-phase tick (perceive everyone from the start-of-tick state, then decide in rotated order), travel ticks, conversation claims, night fast-forward, per-tick event commit / abort on budget |
+
+Prompt templates live in `src/smallville_lite/llm/prompts/*.md` (versioned; `id@version` is logged on every call).
+Output schemas are in `llm/schemas.py`. Place and object choices are enums built per call from what the agent knows.

@@ -4,7 +4,7 @@
   responders), else a generic generator that produces a schema-valid object from the
   Pydantic model's JSON schema. Randomness is seeded from (seed, task, messages, attempt), so
   the same run reproduces exactly.
-* Usage: tokens are ``ceil(chars / 4)``. Prompt caching is simulated with the model's real
+* Usage: tokens are ``ceil(chars / chars_per_token)`` with each model's configured ratio. Prompt caching is simulated with the model's real
   minimum cacheable length: the first request with a given prefix writes it, later ones read
   it. Costs are then priced with the real price table, so budget logic runs end to end.
 """
@@ -44,10 +44,12 @@ class FakeBackend:
         seed: int = 0,
         *,
         min_cache_tokens: Mapping[str, int] | None = None,
+        chars_per_token: Mapping[str, float] | None = None,
         responders: Mapping[str, Responder] | None = None,
     ) -> None:
         self.seed = seed
         self.min_cache_tokens = dict(min_cache_tokens or {})
+        self.chars_per_token = dict(chars_per_token or {})
         self.responders: dict[str, Responder] = dict(responders or {})
         self._seen_prefixes: set[str] = set()
         self.requests: list[BackendRequest] = []
@@ -89,8 +91,9 @@ class FakeBackend:
             c = m["content"]
             total_chars += len(c) if isinstance(c, str) else sum(len(b.get("text", "")) for b in c)
         total_chars += len(json.dumps(req.output_schema))
-        total = _tokens(total_chars)
-        prefix = _tokens(prefix_chars)
+        cpt = self.chars_per_token.get(req.model, _CHARS_PER_TOKEN)
+        total = _tokens(total_chars, cpt)
+        prefix = _tokens(prefix_chars, cpt)
         read = write5 = write1 = 0
         if key is not None and prefix >= self.min_cache_tokens.get(req.model, 1024):
             if key in self._seen_prefixes:
@@ -103,15 +106,15 @@ class FakeBackend:
                     write5 = prefix
         return Usage(
             input_tokens=total - read - write5 - write1,
-            output_tokens=_tokens(len(text)),
+            output_tokens=_tokens(len(text), cpt),
             cache_read_tokens=read,
             cache_write_5m_tokens=write5,
             cache_write_1h_tokens=write1,
         )
 
 
-def _tokens(chars: int) -> int:
-    return math.ceil(chars / _CHARS_PER_TOKEN)
+def _tokens(chars: int, chars_per_token: float = _CHARS_PER_TOKEN) -> int:
+    return math.ceil(chars / chars_per_token)
 
 
 # ---------------------------------------------------------------------------

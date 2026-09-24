@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from smallville_lite.llm import BudgetExhausted, BudgetGuard, FakeBackend, FakeReply, LLMClient, LLMFailure, PromptPrefix
 from smallville_lite.llm.schemas import Ping
 from smallville_lite.llm.usage import UsageSummary
-from smallville_lite.sim.events import ListSink
 
 LONG_RULES = "Town rules and directory. " * 300          # ~7.5k chars: over Sonnet's 1024-token minimum
 VERY_LONG_RULES = "Town rules and directory. " * 800     # ~20k chars: over Haiku's 4096-token minimum

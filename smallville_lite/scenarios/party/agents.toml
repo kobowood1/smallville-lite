@@ -1,0 +1,64 @@
+# Four agents mirroring the paper's §7.1 diffusion test (DESIGN §4.3).
+# Each semicolon-delimited phrase in `bio` becomes one seed memory (paper §3.1).
+# At the start, only Isabella knows about the party and only Sam knows about his candidacy.
+
+[[agent]]
+name = "Isabella Rodriguez"
+age = 34
+traits = "friendly, outgoing, hospitable"
+home = "Hobbs Cafe"
+home_area = "Hobbs Cafe/Isabella's apartment"
+start = "Hobbs Cafe/Isabella's apartment"
+wake_hint = "Isabella wakes up around 6am, opens Hobbs Cafe at 7am, closes it at 8pm, and goes to bed around 11pm."
+bio = """Isabella Rodriguez is the owner of Hobbs Cafe who loves to make people feel welcome; \
+Isabella Rodriguez lives in the apartment above Hobbs Cafe; \
+Isabella Rodriguez is planning a Valentine's Day party at Hobbs Cafe on February 14th, 2023, from 5pm to 7pm; \
+Isabella Rodriguez wants to invite as many people as possible to the Valentine's Day party; \
+Isabella Rodriguez has known Maria Lopez for about a year, ever since Maria started studying at Hobbs Cafe; \
+Isabella Rodriguez thinks Maria Lopez is a loyal friend; \
+Isabella Rodriguez knows Klaus Mueller by sight because he sometimes buys coffee at Hobbs Cafe"""
+
+[[agent]]
+name = "Sam Moore"
+age = 65
+traits = "warm, talkative, principled"
+home = "Moore House"
+home_area = "Moore House/bedroom"
+start = "Moore House/bedroom"
+wake_hint = "Sam wakes up around 6:30am, gardens in Johnson Park most mornings, and goes to bed around 10pm."
+bio = """Sam Moore is a retired navy officer who loves to share stories from his time at sea; \
+Sam Moore moved to Smallville a few months ago and does not know many people in town yet; \
+Sam Moore tends the community garden in Johnson Park most mornings; \
+Sam Moore buys his groceries at The Willows Market and likes a coffee at Hobbs Cafe; \
+Sam Moore has decided to run for mayor in the upcoming local election; \
+Sam Moore wants to tell his neighbors about his candidacy for mayor and hear what they care about"""
+
+[[agent]]
+name = "Maria Lopez"
+age = 21
+traits = "energetic, curious, kind"
+home = "Oak Hill Dorm"
+home_area = "Oak Hill Dorm/Maria's room"
+start = "Oak Hill Dorm/Maria's room"
+wake_hint = "Maria wakes up around 8am, studies at Hobbs Cafe in the late morning and afternoon, and goes to bed around midnight."
+bio = """Maria Lopez is a physics student at Oak Hill College; \
+Maria Lopez loves studying at Hobbs Cafe and chatting with its owner, Isabella Rodriguez; \
+Maria Lopez and Isabella Rodriguez have been good friends for about a year; \
+Maria Lopez and Klaus Mueller are close friends and dormmates at Oak Hill Dorm; \
+Maria Lopez has a secret crush on Klaus Mueller; \
+Maria Lopez is preparing for a physics exam next week"""
+
+[[agent]]
+name = "Klaus Mueller"
+age = 20
+traits = "thoughtful, earnest, a little shy"
+home = "Oak Hill Dorm"
+home_area = "Oak Hill Dorm/Klaus's room"
+start = "Oak Hill Dorm/Klaus's room"
+wake_hint = "Klaus wakes up around 7am, works at the Oak Hill College Library most of the day, walks through Johnson Park, and goes to bed around 11pm."
+bio = """Klaus Mueller is a sociology student at Oak Hill College; \
+Klaus Mueller is writing a research paper on the effects of gentrification in low-income communities; \
+Klaus Mueller works on his research at the Oak Hill College Library most days; \
+Klaus Mueller and Maria Lopez are close friends and dormmates at Oak Hill Dorm; \
+Klaus Mueller likes to clear his head with a walk through Johnson Park; \
+Klaus Mueller knows Isabella Rodriguez as the owner of Hobbs Cafe, where he sometimes buys coffee"""

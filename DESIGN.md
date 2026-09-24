@@ -660,6 +660,9 @@ to a JSON schema. "Rewrite" means a new prompt.
 | L8 | reflection threshold 150 | configurable; party scenario 75 | 4 agents and coarse ticks produce fewer observations |
 | L9 | plans in the memory stream at every level | day + hour + commitments in the stream; 5–15 min steps in scratch | avoids flooding retrieval with micro-steps; matches the original's JIT spirit |
 | L10 | the post-conversation step isn't described | conversation notes + commitments (from the original code) | needed for reliable coordination; logged separately so an ablation can disable it |
+| L11 | day planning uses retrieved memories | retrieval for "plans and commitments for `<date>`" **plus** every commitment node dated today | *added in Phase 3.* A commitment is still a memory; including dated ones explicitly makes attendance at an agreed event not depend on one retrieval ranking |
+| L12 | the agent summary is the prompt prefix | summary + the agent's seed bio phrases (stable for the whole run) | *added in Phase 3.* Useful identity context, and it lifts the Sonnet prefix over the 1024-token caching minimum (measured about 1,300–1,400 tokens) without filler. The town rules deliberately leave out a roster of residents, which would leak who-knows-whom |
+| L13 | observations are behaviours of self, others, and objects | same, including the agent's own current action (non-salient) | *added in Phase 3.* Own actions feed memory and the reflection accumulator, as in the paper's examples ("Isabella Rodriguez is setting out the pastries") |
 
 **Kept from the paper, correcting the original code:** D1–D3 (recency per game-hour, direction, weights),
 D5 (scored retrieval on the react path), D6 (chats retrievable), D7 (100 records, evidence trees),

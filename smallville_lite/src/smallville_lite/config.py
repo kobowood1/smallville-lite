@@ -42,6 +42,7 @@ class ModelSpec:
     cache_write_1h: float
     cache_read: float
     min_cache_tokens: int
+    chars_per_token: float
     supports_temperature: bool
     supports_effort: bool
     thinking_modes: tuple[ThinkingMode, ...]
@@ -99,6 +100,88 @@ class EmbeddingSettings:
 
 
 @dataclass(frozen=True)
+class SimSettings:
+    """Cognitive-architecture knobs (DESIGN §3, §5)."""
+
+    tick_minutes: int = 10
+    att_bandwidth: int = 5
+    retention: int = 10
+    w_recency: float = 1.0
+    w_importance: float = 1.0
+    w_relevance: float = 1.0
+    recency_decay: float = 0.995
+    top_k: int = 15
+    reflection_threshold: float = 150
+    reflection_recent_records: int = 100
+    reflection_questions: int = 3
+    insights_per_question: int = 5
+    reflection_retrieve_k: int = 15
+    decompose_horizon_minutes: int = 60
+    day_plan_items_min: int = 5
+    day_plan_items_max: int = 8
+    react_context_k: int = 5
+    dialogue_max_turns: int = 12
+    minutes_per_utterance: int = 1
+    pair_cooldown_minutes: int = 180
+    dialogue_retrieve_k: int = 8
+    relationship_k: int = 10
+    interview_retrieve_k: int = 15
+    interview_remember: bool = False
+    snapshot_every_ticks: int = 6
+
+
+_SIM_KEYS = {
+    ("time", "tick_minutes"): "tick_minutes",
+    ("perception", "att_bandwidth"): "att_bandwidth",
+    ("perception", "retention"): "retention",
+    ("retrieval", "w_recency"): "w_recency",
+    ("retrieval", "w_importance"): "w_importance",
+    ("retrieval", "w_relevance"): "w_relevance",
+    ("retrieval", "recency_decay"): "recency_decay",
+    ("retrieval", "top_k"): "top_k",
+    ("reflection", "threshold"): "reflection_threshold",
+    ("reflection", "recent_records"): "reflection_recent_records",
+    ("reflection", "questions"): "reflection_questions",
+    ("reflection", "insights_per_question"): "insights_per_question",
+    ("reflection", "retrieve_k"): "reflection_retrieve_k",
+    ("planning", "decompose_horizon_minutes"): "decompose_horizon_minutes",
+    ("planning", "day_plan_items_min"): "day_plan_items_min",
+    ("planning", "day_plan_items_max"): "day_plan_items_max",
+    ("react", "context_k"): "react_context_k",
+    ("dialogue", "max_turns"): "dialogue_max_turns",
+    ("dialogue", "minutes_per_utterance"): "minutes_per_utterance",
+    ("dialogue", "pair_cooldown_minutes"): "pair_cooldown_minutes",
+    ("dialogue", "retrieve_k"): "dialogue_retrieve_k",
+    ("dialogue", "relationship_k"): "relationship_k",
+    ("interview", "retrieve_k"): "interview_retrieve_k",
+    ("interview", "remember"): "interview_remember",
+    ("log", "snapshot_every_ticks"): "snapshot_every_ticks",
+}
+
+
+def _parse_sim(raw: Mapping[str, Any], errors: list[str]) -> SimSettings:
+    defaults = SimSettings()
+    values: dict[str, Any] = {}
+    for (section, key), attr in _SIM_KEYS.items():
+        if key in raw.get(section, {}):
+            kind = type(getattr(defaults, attr))
+            try:
+                values[attr] = kind(raw[section][key])
+            except (TypeError, ValueError):
+                errors.append(f"{section}.{key}: expected {kind.__name__}")
+    sim = SimSettings(**{**defaults.__dict__, **values})
+    if sim.tick_minutes <= 0 or 1440 % sim.tick_minutes:
+        errors.append("time.tick_minutes must be a positive divisor of 1440")
+    if not 0 < sim.recency_decay <= 1:
+        errors.append("retrieval.recency_decay must be in (0, 1]")
+    if sim.reflection_threshold <= 0:
+        errors.append("reflection.threshold must be > 0")
+    if sim.dialogue_max_turns < 2:
+        errors.append("dialogue.max_turns must be >= 2")
+    return sim
+
+
+@dataclass(frozen=True)
 class Config:
     seed: int
     stub: bool
@@ -106,6 +189,7 @@ class Config:
     budget: BudgetSettings
     embedding: EmbeddingSettings
     summary_refresh_on: frozenset[str]
+    sim: SimSettings
     models: Mapping[str, ModelSpec]
     tasks: Mapping[str, TaskSpec]
     embedding_models: Mapping[str, EmbeddingModelSpec]
@@ -225,6 +309,7 @@ def parse_config(raw: Mapping[str, Any]) -> Config:
         )
 
     refresh_on = frozenset(raw.get("summary", {}).get("refresh_on", ["reflection", "new_day"]))
+    sim = _parse_sim(raw, errors)
 
     if errors:
         raise ConfigError("invalid configuration:\n  - " + "\n  - ".join(errors))
@@ -235,6 +320,7 @@ def parse_config(raw: Mapping[str, Any]) -> Config:
         budget=budget,
         embedding=embedding,
         summary_refresh_on=refresh_on,
+        sim=sim,
         models=models,
         tasks=tasks,
         embedding_models=emb_models,
@@ -264,13 +350,14 @@ def _parse_model(mid: str, spec: Mapping[str, Any], errors: list[str]) -> ModelS
             cache_write_1h=float(spec["cache_write_1h"]),
             cache_read=float(spec["cache_read"]),
             min_cache_tokens=int(spec.get("min_cache_tokens", 1024)),
+            chars_per_token=float(spec.get("chars_per_token", 4.0)),
             supports_temperature=bool(spec.get("supports_temperature", True)),
             supports_effort=bool(spec.get("supports_effort", False)),
             thinking_modes=modes,  # type: ignore[arg-type]
         )
     except KeyError as exc:
         errors.append(f"models.{mid}: missing price field {exc.args[0]!r}")
-        return ModelSpec(mid, 0, 0, 0, 0, 0, 0, False, False, ("none",))
+        return ModelSpec(mid, 0, 0, 0, 0, 0, 0, 4.0, False, False, ("none",))
 
 
 def _parse_task(

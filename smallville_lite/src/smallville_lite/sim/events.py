@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EventSink(Protocol):
@@ -109,6 +109,164 @@ class RunEndedData(_Data):
     detail: str | None = None
 
 
+class RunResumedData(_Data):
+    from_tick: int
+    segment: int
+    checkpoint: str | None = None
+    budget_usd: float | None = None
+
+
+class TimeSkippedData(_Data):
+    from_tick: int
+    to_tick: int
+    reason: str
+
+
+class WorldInitData(_Data):
+    town: str
+    places: list[dict[str, Any]]
+    travel_ticks_default: int
+    tick_minutes: int
+    start: str
+    layout: dict[str, Any] | None = None
+
+
+class AgentInitData(_Data):
+    age: int
+    traits: str
+    bio: list[str]
+    home: str
+    start: str
+    known_places: list[str]
+
+
+class StateSnapshotData(_Data):
+    agents: dict[str, dict[str, Any]]
+    object_states: dict[str, str]
+
+
+class ActionStartedData(_Data):
+    action_id: str
+    description: str
+    emoji: str
+    label: str
+    place: str
+    object: str | None = None
+    object_state: str | None = None
+    start: str
+    duration_min: int | None = None
+    kind: Literal["planned", "reaction", "chat", "wait", "sleep", "travel"]
+    brief: bool = False       # shorter than a tick; superseded within the same tick
+
+
+class MoveStartedData(_Data):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    origin: str = Field(alias="from")
+    to: str
+    depart_tick: int
+    arrive_tick: int
+
+
+class MoveArrivedData(_Data):
+    place: str
+
+
+class ObjectStateChangedData(_Data):
+    object_path: str
+    state: str
+    by: str | None = None
+
+
+class MemoryAddedData(_Data):
+    node: dict[str, Any]
+
+
+class MemoryAccessedData(_Data):
+    query: str
+    purpose: str
+    results: list[dict[str, Any]]
+
+
+class PerceivedData(_Data):
+    observations: list[dict[str, Any]]
+
+
+class ReactDecisionData(_Data):
+    observation_node_id: str
+    react: bool
+    kind: str
+    reaction: str
+    reason: str
+
+
+class PlanCreatedData(_Data):
+    level: Literal["day", "hour", "detail"]
+    date: str
+    items: list[dict[str, Any]]
+    wake: str | None = None
+    sleep: str | None = None
+    block_id: str | None = None
+
+
+class PlanRevisedData(_Data):
+    reason: str
+    cause: str | None = None
+    from_time: str
+    removed_ids: list[str]
+    added: list[dict[str, Any]]
+
+
+class ReflectionData(_Data):
+    trigger_sum: float
+    questions: list[str]
+    insights: list[dict[str, Any]]
+
+
+class SummaryUpdatedData(_Data):
+    version: int
+    text: str
+
+
+class ConversationStartedData(_Data):
+    conv_id: str
+    participants: list[str]
+    initiator: str
+    place: str
+    reason: str
+
+
+class UtteranceData(_Data):
+    conv_id: str
+    turn: int
+    speaker: str
+    listener: str
+    text: str
+    end_conversation: bool
+    retrieved_node_ids: list[str]
+
+
+class ConversationEndedData(_Data):
+    conv_id: str
+    turns: int
+    ended_by: str
+    topic_label: str
+    summary: str
+    duration_minutes: int
+
+
+class InterviewData(_Data):
+    question: str
+    answer: str
+    cited_node_ids: list[str]
+    source: str
+
+
+class LLMFallbackData(_Data):
+    task: str
+    reason: str
+    used: str
+
+
 EVENT_MODELS: dict[str, type[BaseModel]] = {
     "llm_call": LLMCallData,
     "embed_call": EmbedCallData,
@@ -116,6 +274,28 @@ EVENT_MODELS: dict[str, type[BaseModel]] = {
     "budget_exhausted": BudgetData,
     "run_started": RunStartedData,
     "run_ended": RunEndedData,
+    "run_resumed": RunResumedData,
+    "time_skipped": TimeSkippedData,
+    "world_init": WorldInitData,
+    "agent_init": AgentInitData,
+    "state_snapshot": StateSnapshotData,
+    "action_started": ActionStartedData,
+    "move_started": MoveStartedData,
+    "move_arrived": MoveArrivedData,
+    "object_state_changed": ObjectStateChangedData,
+    "memory_added": MemoryAddedData,
+    "memory_accessed": MemoryAccessedData,
+    "perceived": PerceivedData,
+    "react_decision": ReactDecisionData,
+    "plan_created": PlanCreatedData,
+    "plan_revised": PlanRevisedData,
+    "reflection": ReflectionData,
+    "summary_updated": SummaryUpdatedData,
+    "conversation_started": ConversationStartedData,
+    "utterance": UtteranceData,
+    "conversation_ended": ConversationEndedData,
+    "interview": InterviewData,
+    "llm_fallback": LLMFallbackData,
 }
 
 COST_EVENT_TYPES = frozenset({"llm_call", "embed_call", "budget_warning", "budget_exhausted"})
@@ -157,7 +337,7 @@ class EventLog:
     def emit(self, type: str, data: dict[str, Any], agent: str | None = None, game_time: str | None = None) -> None:
         model = EVENT_MODELS.get(type)
         if model is not None:
-            data = model.model_validate(data).model_dump(exclude_none=True)
+            data = model.model_validate(data).model_dump(exclude_none=True, by_alias=True)
         self._seq += 1
         event = {
             "seq": self._seq,

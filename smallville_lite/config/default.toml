@@ -1,5 +1,4 @@
-# Simulation defaults. Phase 2 uses [run], [budget], and [embedding];
-# later phases add time, retrieval, reflection, planning, and dialogue sections.
+# Simulation defaults. Scenario files may override any of these.
 # API keys are never read from config: set ANTHROPIC_API_KEY / VOYAGE_API_KEY in the environment.
 
 [run]
@@ -21,3 +20,46 @@ batch_size = 64
 [summary]
 # When the cached App. A agent summary (the prompt-cache prefix) is regenerated.
 refresh_on = ["reflection", "new_day"]
+
+[time]
+tick_minutes = 10                # game minutes per tick (DESIGN §3)
+
+[perception]
+att_bandwidth = 5                # max new observations per agent per tick
+retention = 10                   # an observation repeating one of the last N is not new
+
+[retrieval]                      # paper §4.1
+w_recency = 1.0
+w_importance = 1.0
+w_relevance = 1.0
+recency_decay = 0.995            # per game-hour since last access
+top_k = 15
+
+[reflection]                     # paper §4.2
+threshold = 150                  # sum of new-observation importance that triggers a reflection
+recent_records = 100             # records shown when generating questions
+questions = 3
+insights_per_question = 5
+retrieve_k = 15
+
+[planning]                       # paper §4.3
+decompose_horizon_minutes = 60   # just-in-time: decompose hour blocks starting within this window
+day_plan_items_min = 5
+day_plan_items_max = 8
+
+[react]
+context_k = 5                    # memories retrieved per query for the react decision
+
+[dialogue]                       # paper §4.3.2
+max_turns = 12
+minutes_per_utterance = 1
+pair_cooldown_minutes = 180
+retrieve_k = 8
+relationship_k = 10
+
+[interview]
+retrieve_k = 15
+remember = false                 # write interview answers into memory (paper evaluation: no)
+
+[log]
+snapshot_every_ticks = 6
