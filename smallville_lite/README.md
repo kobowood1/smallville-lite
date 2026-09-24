@@ -4,8 +4,8 @@ A text-only reimplementation of *Generative Agents: Interactive Simulacra of Hum
 (Park et al., UIST 2023) on the Claude API. See `../ARCHITECTURE.md` (map of the original) and
 `../DESIGN.md` (this project's design).
 
-**Status:** Phases 2 (model layer + cost controls), 3 (cognitive core) and 4 (runner, checkpoint/resume, report,
-web log) are done. Phase 5 adds the visual town.
+**Status:** Phases 2 (model layer + cost controls), 3 (cognitive core), 4 (runner, checkpoint/resume, report,
+web log) and 5 (visual town, replay + live) are done.
 
 ## Setup
 
@@ -111,3 +111,30 @@ Every LLM call goes through `LLMClient.call(task, output=PydanticModel, user=...
 
 Prompt templates live in `src/smallville_lite/llm/prompts/*.md` (versioned; `id@version` is logged on every call).
 Output schemas are in `llm/schemas.py`. Place and object choices are enums built per call from what the agent knows.
+
+## Visual town (Phase 5)
+
+The viewer's **Town** tab replays a run, or follows a live one, as an animated map. It is driven entirely by
+`events.jsonl`; the simulation never knows it exists.
+
+- **Views:** 3D (three.js / WebGL, the default) or 2D (SVG). Both implement the same renderer interface
+  (`web/static/renderer.js`: `mount / render / setSelected / onAgentClick / resize / destroy`).
+  - The 3D view adds a day/night cycle that follows game time, lamps that turn on at night, agents that bob and turn as
+    they walk and lie down to sleep (with floating z's), emoji that pop when an action changes, and pulsing rings on
+    objects in use. Drag to orbit, right-drag to pan, scroll to zoom.
+  - three.js 0.186.0 loads from jsdelivr through an import map. Without network access or WebGL, the view falls back to 2D
+    automatically.
+- **Map:** `scenarios/<name>/layout.toml` gives `x, y, w, h` per place (plus optional areas, doors, object positions and
+  icons). Anything missing is laid out automatically (`web/layout.py`).
+- **Agents** are colored sprites in a fixed categorical order, with their current emoji above their head. They walk
+  between places through the buildings' doors, and tween between objects inside a place.
+- **Dialogue** appears as speech bubbles that open away from the conversation partner, plus a live transcript in the side
+  panel. Clicking an agent shows their current action, today's plan (hour blocks with the current 5–15 minute steps),
+  their recent memories, and a link to their full memory stream.
+- **Playback:** play/pause; speed 1× to 60× (1× = one game minute per second, the pace from the paper's App. A); a scrubber
+  across game time; "slow down for dialogue" (one line every ~3 s); and "skip nights" (jumps over `time_skipped` spans).
+- **Live mode:** the server streams new log lines as server-sent events (`/api/runs/<id>/stream`, resumable with
+  `Last-Event-ID`). A running simulation plays as it happens. To watch a zero-cost run live:
+  `smallville run --stub --days 2 --budget 5 --pace 0.4` in one terminal, `smallville serve` in another.
+- **Tests:** the scene model (`web/static/scene.js`: interpolation, bubbles, plans, skips) has Node unit tests in
+  `tests/js/`, run by `pytest` through `tests/test_js.py` (skipped if `node` is not installed).

@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smallville Log</title>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/" } }
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -12,6 +17,12 @@
     --accent: #2a78d6; --accent-soft: #e3eefc; --series-1: #2a78d6; --grid: #e7e5e0;
     --chat: #eb6834; --chat-soft: #fdebe3; --reflect: #4a3aa7; --plan: #1baf7a;
     --warn: #fab219; --crit: #d03b3b; --good: #0ca30c;
+    /* agent identity colours: categorical slots in fixed order (dataviz reference palette) */
+    --agent-0: #2a78d6; --agent-1: #eb6834; --agent-2: #1baf7a; --agent-3: #eda100;
+    --agent-4: #e87ba4; --agent-5: #008300; --agent-6: #4a3aa7; --agent-7: #e34948; --agent-other: #8f8e86;
+    --agent-ink-0: #fff; --agent-ink-1: #fff; --agent-ink-2: #fff; --agent-ink-3: #0b0b0b;
+    --agent-ink-4: #0b0b0b; --agent-ink-5: #fff; --agent-ink-6: #fff; --agent-ink-7: #fff; --agent-ink-other: #fff;
+    --map-public: #eef4fb; --map-private: #f3f1ec; --map-area: #ffffff;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     color-scheme: light;
@@ -22,6 +33,9 @@
       --text: #ffffff; --text-2: #c3c2b7; --text-3: #8f8e86;
       --accent: #3987e5; --accent-soft: #1c2a3d; --series-1: #3987e5; --grid: #2c2c2a;
       --chat: #d95926; --chat-soft: #3a2419; --reflect: #9085e9; --plan: #199e70;
+      --agent-0: #3987e5; --agent-1: #d95926; --agent-2: #199e70; --agent-3: #c98500;
+      --agent-4: #d55181; --agent-5: #008300; --agent-6: #9085e9; --agent-7: #e66767;
+      --map-public: #1c2530; --map-private: #242422; --map-area: #1a1a19;
       color-scheme: dark;
     }
   }
@@ -99,6 +113,55 @@
   .answer { white-space: pre-wrap; }
   h2 { font-size: 16px; margin: 0 0 10px; } h3 { font-size: 14px; margin: 16px 0 8px; }
   .empty { padding: 30px; text-align: center; color: var(--text-3); }
+  /* ---------- visual town ---------- */
+  .town { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; }
+  @media (max-width: 1000px) { .town { grid-template-columns: 1fr; } }
+  .map { position: relative; }
+  .map svg { width: 100%; height: auto; display: block; }
+  .map canvas { display: block; width: 100%; border-radius: 8px; touch-action: none; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+  .controls input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  #tPlay { width: 44px; font-size: 15px; }
+  .place-rect { stroke: var(--border); stroke-width: 1.5; }
+  .place.public .place-rect { fill: var(--map-public); }
+  .place.private .place-rect { fill: var(--map-private); }
+  .area-rect { fill: var(--map-area); stroke: var(--border); stroke-dasharray: 4 3; }
+  .place-label { font: 600 14px var(--sans); fill: var(--text); }
+  .area-label { font: 11px var(--sans); fill: var(--text-3); }
+  .door { fill: var(--text-3); opacity: .5; }
+  .object-icon { font-size: 15px; opacity: .85; }
+  .object.busy .object-icon { opacity: 1; }
+  .object-badge { fill: var(--warn); stroke: var(--surface); stroke-width: 1.5; }
+  .agent { cursor: pointer; outline: none; }
+  .agent-halo { fill: transparent; stroke: transparent; stroke-width: 3; }
+  .agent.selected .agent-halo, .agent:focus .agent-halo { stroke: var(--text); }
+  .agent-body { stroke: var(--surface); stroke-width: 2; }
+  .agent-initials { font: 700 10px var(--sans); pointer-events: none; }
+  .agent-emoji { font-size: 16px; pointer-events: none; }
+  .agent-name { font: 600 11px var(--sans); fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; pointer-events: none; }
+  .agent.walking .agent-body { stroke-dasharray: 3 2; }
+  .talk-link { stroke: var(--chat); stroke-width: 2; stroke-dasharray: 5 4; opacity: .8; }
+  .bubbles { position: absolute; inset: 0; pointer-events: none; }
+  .speech { position: absolute; max-width: 230px; width: max-content; padding: 6px 10px; border-radius: 10px;
+            background: var(--surface); border: 2px solid var(--who); font-size: 12.5px; line-height: 1.35;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .speech.east { transform: translate(-14px, -100%); }
+  .speech.west { transform: translate(calc(-100% + 14px), -100%); }
+  .speech.below.east { transform: translate(-14px, 0); }
+  .speech.below.west { transform: translate(calc(-100% + 14px), 0); }
+  .speech::after { content: ""; position: absolute; bottom: -8px; border: 6px solid transparent; border-top-color: var(--who); }
+  .speech.east::after { left: 8px; } .speech.west::after { right: 8px; }
+  .speech.below::after { bottom: auto; top: -8px; border-top-color: transparent; border-bottom-color: var(--who); }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+  .now-line { font-size: 14px; margin: 4px 0; } .big-emoji { font-size: 22px; margin-right: 6px; vertical-align: middle; }
+  ol.plan { padding-left: 18px; margin: 4px 0; font-size: 12.5px; } ol.plan li { margin: 2px 0; }
+  ol.plan li.current, ul.steps li.current { font-weight: 650; }
+  ul.steps { padding-left: 14px; margin: 2px 0 4px; font-weight: 400; }
+  ul.mems { padding-left: 16px; margin: 4px 0; font-size: 12.5px; } ul.mems li { margin: 3px 0; }
+  .conv-panel .line { margin: 5px 0; padding: 6px 9px; border-radius: 9px; background: var(--surface-2); font-size: 13px; max-width: 92%; }
+  .conv-panel .line.right { margin-left: auto; background: var(--accent-soft); }
+  .conv-panel .who { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+  .town-side { max-height: calc(100vh - 190px); overflow: auto; }
 </style>
 </head>
 <body>
@@ -116,7 +179,8 @@
     <span class="clock" id="clock">-</span>
   </div>
   <nav id="tabs">
-    <button data-tab="timeline" class="on">Timeline</button>
+    <button data-tab="town" class="on">Town</button>
+    <button data-tab="timeline">Timeline</button>
     <button data-tab="memory">Memory</button>
     <button data-tab="reflections">Reflections</button>
     <button data-tab="dialogues">Dialogues</button>
@@ -126,7 +190,32 @@
   </nav>
 </header>
 <main>
-  <section class="panel on" id="p-timeline">
+  <section class="panel on" id="p-town">
+    <div class="town">
+      <div class="card">
+        <div class="map" id="townMap"></div>
+        <div class="controls">
+          <button id="tPlay" aria-label="Play">▶</button>
+          <label class="small">speed <select id="tSpeed" aria-label="Playback speed">
+            <option value="1">1× (1 game min / s)</option><option value="5">5×</option><option value="15" selected>15×</option>
+            <option value="30">30×</option><option value="60">60× (1 game h / s)</option></select></label>
+          <input type="range" id="tScrub" min="0" max="1000" value="0" aria-label="Game time">
+          <span class="clock" id="tClock">-</span>
+        </div>
+        <div class="controls small">
+          <label>view <select id="tRenderer" aria-label="Renderer"><option value="three">3D (WebGL)</option><option value="svg">2D (SVG)</option></select></label>
+          <label><input type="checkbox" id="tLive"> live</label>
+          <label><input type="checkbox" id="tSlow" checked> slow down for dialogue</label>
+          <label><input type="checkbox" id="tSkip" checked> skip nights</label>
+          <span class="muted" id="tNotice"></span>
+          <span class="muted">3D: drag to orbit, right-drag to pan, scroll to zoom</span>
+        </div>
+      </div>
+      <aside class="card town-side" id="tSide"></aside>
+    </div>
+  </section>
+
+  <section class="panel" id="p-timeline">
     <div class="grid-now" id="nowCards"></div>
     <div class="row"><label>Day <select id="daySel"></select></label>
       <label class="small"><input type="checkbox" id="showBrief" checked> show short steps</label></div>
@@ -201,8 +290,9 @@
 </main>
 
 <script type="module">
-import { createIndex, addEvents, reduceState, gameTime, memoryAt, lastAccessed, reflectionForest, usage,
+import { createIndex, addEvents, addEvent, reduceState, gameTime, memoryAt, lastAccessed, reflectionForest, usage,
          hitRate, conversationsFor, commitmentsFor } from "/static/state.js";
+import { TownView } from "/static/town.js";
 
 // ---------- tiny DOM helpers (all data goes in via textContent) ----------
 const $ = (s) => document.querySelector(s);
@@ -234,7 +324,7 @@ async function getJSON(url, opts) {
 
 // ---------- state ----------
 let idx = createIndex();
-let runId = null, runMeta = null, pollTimer = null, tab = "timeline";
+let runId = null, runMeta = null, stream = null, tab = "town", renderQueued = false;
 const ui = { tick: 0, day: null, selConv: null };
 
 async function loadRuns() {
@@ -247,7 +337,19 @@ async function loadRuns() {
   await openRun(sel.value);
 }
 
+const town = new TownView({
+  els: { map: $("#townMap"), side: $("#tSide"), play: $("#tPlay"), speed: $("#tSpeed"), scrub: $("#tScrub"),
+         clock: $("#tClock"), live: $("#tLive"), slow: $("#tSlow"), skip: $("#tSkip"),
+         renderer: $("#tRenderer"), notice: $("#tNotice") },
+  onTimeChange: (tick) => { ui.tick = tick; $("#follow").checked = tick >= idx.maxTick; syncHeader(); },
+  onOpenMemory: (name, tick) => { $("#memAgent").value = name; ui.tick = tick; $("#follow").checked = false; switchTab("memory"); },
+  onOpenDialogue: (convId) => { ui.selConv = convId; switchTab("dialogues"); },
+});
+
+window.smallvilleTown = town;   // handy from devtools
+
 async function openRun(id) {
+  stream?.close(); stream = null;
   runId = id; idx = createIndex(); ui.day = null; ui.selConv = null;
   history.replaceState(null, "", `?run=${encodeURIComponent(id)}`);
   runMeta = await getJSON(`/api/runs/${id}/meta`);
@@ -255,18 +357,34 @@ async function openRun(id) {
   addEvents(idx, data.events);
   setupSelectors();
   ui.tick = idx.maxTick;
+  const live = idx.run.status === "running";
+  const layout = await getJSON(`/api/runs/${id}/layout`);
+  await town.open(idx, layout, { live });
+  town.setVisible(tab === "town");
   syncHeader(); render();
-  clearInterval(pollTimer);
-  pollTimer = setInterval(poll, 2000);
+  if (live) openStream();
 }
 
-async function poll() {
-  if (!runId || idx.run.status !== "running") { $("#liveDot").classList.remove("live"); return; }
-  const data = await getJSON(`/api/runs/${runId}/events?after=${idx.lastSeq}`).catch(() => null);
-  if (!data || !data.events.length) return;
-  addEvents(idx, data.events);
+// Live mode: server-sent events, one per new log line (reconnects resume from Last-Event-ID).
+function openStream() {
+  stream = new EventSource(`/api/runs/${runId}/stream?after=${idx.lastSeq}`);
+  stream.addEventListener("log", (msg) => {
+    const e = JSON.parse(msg.data);
+    if (e.type === "run_resumed" && e.seq > idx.lastSeq && idx.lastSeq) {
+      // A resume may supersede events we already showed: reload from scratch.
+      stream.close(); openRun(runId); return;
+    }
+    addEvent(idx, e);
+    if (!renderQueued) { renderQueued = true; setTimeout(flushLive, 400); }
+  });
+  stream.addEventListener("end", () => { stream.close(); stream = null; flushLive(); });
+}
+
+function flushLive() {
+  renderQueued = false;
   if ($("#follow").checked) ui.tick = idx.maxTick;
-  setupSelectors(); syncHeader(); render();
+  setupSelectors(); town.refresh(idx); syncHeader();
+  if (tab !== "town") render();
 }
 
 function syncHeader() {
@@ -315,6 +433,7 @@ function setupSelectors() {
 // ---------- rendering ----------
 function render() {
   syncHeader();
+  if (tab === "town") return;              // the town draws itself every animation frame
   ({ timeline: renderTimeline, memory: renderMemory, reflections: renderReflections, dialogues: renderDialogues,
      cost: renderCost, interview: renderInterview, report: renderReport })[tab]();
 }
@@ -642,6 +761,8 @@ function switchTab(name) {
   tab = name;
   for (const b of document.querySelectorAll("#tabs button")) b.classList.toggle("on", b.dataset.tab === name);
   for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === `p-${name}`);
+  town.setVisible(name === "town");
+  if (name === "town") town.seekTick(ui.tick);
   render();
 }
 document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
@@ -651,6 +772,7 @@ $("#tick").addEventListener("input", (e) => {
   $("#follow").checked = ui.tick === idx.maxTick;
   const t = gameTime(idx, ui.tick);
   if (t && tab === "timeline") $("#daySel").value = t.toISOString().slice(0, 10);
+  if (tab === "town") { $("#tLive").checked = false; town.pause(); town.seekTick(ui.tick); }
   render();
 });
 for (const id of ["#daySel", "#showBrief", "#memAgent", "#memSub", "#memSort", "#memAsOf", "#refAgent", "#dlgAgent"]) {

@@ -594,6 +594,12 @@ behavior to its prompt, cost, and cited memories.
   first and three.js later.
 - **Live mode** (Phase 5): the server tails `events.jsonl` and streams new lines over SSE. The writer flushes once per
   committed tick, so the viewer never sees a half tick.
+- *Implemented in Phase 5:*
+  - The town view computes a continuous-time scene (`web/static/scene.js`) from the reducer's index and the scenario's
+    `layout.toml`.
+  - Renderers implement one interface. Both exist: the 3D three.js/WebGL renderer (default; three.js is pinned to 0.186.0
+    and loaded from the jsdelivr CDN) and the 2D SVG renderer (automatic fallback).
+  - If a resume supersedes events the viewer already showed live, the page reloads the run.
 
 ### 8.4 Other run artifacts
 ```

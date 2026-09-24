@@ -1,0 +1,46 @@
+# Map layout for the visual town (Phase 5). Viewer-only: the simulation never reads this file.
+# Coordinates are in map units; the viewer scales the map to fit. Objects not listed are auto-placed
+# inside their area. See src/smallville_lite/web/layout.py for the format.
+
+width = 1000
+height = 660
+
+[places."Hobbs Cafe"]
+rect = [30, 30, 330, 270]
+door = [195, 300]
+  [places."Hobbs Cafe".areas."cafe floor"]
+  rect = [40, 60, 200, 230]
+  [places."Hobbs Cafe".areas."Isabella's apartment"]
+  rect = [250, 60, 100, 230]
+
+[places."Johnson Park"]
+rect = [390, 30, 280, 270]
+door = [530, 300]
+
+[places."The Willows Market"]
+rect = [700, 30, 270, 200]
+door = [700, 150]
+
+[places."Oak Hill College Library"]
+rect = [700, 260, 270, 200]
+door = [700, 360]
+
+[places."Oak Hill Dorm"]
+rect = [30, 340, 330, 290]
+door = [195, 340]
+  [places."Oak Hill Dorm".areas."Maria's room"]
+  rect = [40, 370, 150, 120]
+  [places."Oak Hill Dorm".areas."Klaus's room"]
+  rect = [200, 370, 150, 120]
+  [places."Oak Hill Dorm".areas."common room"]
+  rect = [40, 500, 310, 120]
+
+[places."Moore House"]
+rect = [390, 340, 280, 290]
+door = [530, 340]
+  [places."Moore House".areas."bedroom"]
+  rect = [400, 370, 125, 120]
+  [places."Moore House".areas."kitchen"]
+  rect = [535, 370, 125, 120]
+  [places."Moore House".areas."living room"]
+  rect = [400, 500, 260, 120]

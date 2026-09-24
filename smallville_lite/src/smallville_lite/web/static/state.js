@@ -28,6 +28,7 @@ export function createIndex() {
     fallbacks: [],
     budget: [],                // budget_warning / budget_exhausted
     reports: [],
+    skips: [],                 // time_skipped data (nights when everyone is asleep)
     lastSeq: 0,
     maxTick: 0,
   };
@@ -70,7 +71,7 @@ export function addEvent(idx, e) {
       agentEntry(idx, e.agent).init = d;
       break;
     case "action_started":
-      agentEntry(idx, e.agent).actions.push({ ...d, tick: e.tick, time: e.game_time, agent: e.agent });
+      agentEntry(idx, e.agent).actions.push({ ...d, seq: e.seq, tick: e.tick, time: e.game_time, agent: e.agent });
       idx.stateEvents.push(e);
       break;
     case "move_started":
@@ -134,6 +135,9 @@ export function addEvent(idx, e) {
       break;
     case "report":
       idx.reports.push(d);
+      break;
+    case "time_skipped":
+      idx.skips.push(d);
       break;
   }
 }

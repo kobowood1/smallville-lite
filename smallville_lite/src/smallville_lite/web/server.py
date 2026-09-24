@@ -7,15 +7,17 @@ The only write is an interview, which runs against a saved checkpoint and is log
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -23,6 +25,8 @@ from ..cognition.interview import load_presets
 from ..sim.checkpoint import list_checkpoints
 from ..sim.events import filter_superseded
 from ..sim.runner import RunPaths, interview_run, list_runs
+from ..sim.scenario import load_scenario
+from .layout import LayoutError, build_layout
 
 STATIC = Path(__file__).with_name("static")
 _RUN_ID = re.compile(r"^[A-Za-z0-9_.\-]+$")
@@ -62,7 +66,23 @@ class _EventCache:
             return events
 
 
-def create_app(runs_dir: str | Path, *, stub_interviews: bool = False, interview_budget: float = 0.5) -> FastAPI:
+def _light(e: dict[str, Any], full: bool) -> dict[str, Any]:
+    if not full and e["type"] == "llm_call" and any(k in e["data"] for k in _HEAVY):
+        return {**e, "data": {k: v for k, v in e["data"].items() if k not in _HEAVY}}
+    return e
+
+
+def _ended(events: list[dict[str, Any]]) -> bool:
+    for e in reversed(events):
+        if e["type"] in ("run_started", "run_resumed"):
+            return False
+        if e["type"] == "run_ended":
+            return True
+    return False
+
+
+def create_app(runs_dir: str | Path, *, stub_interviews: bool = False, interview_budget: float = 0.5,
+               poll_seconds: float = 0.5, keepalive_seconds: float = 15.0) -> FastAPI:
     runs_root = Path(runs_dir)
     cache = _EventCache()
     session = {"spent": 0.0}
@@ -90,15 +110,50 @@ def create_app(runs_dir: str | Path, *, stub_interviews: bool = False, interview
         paths = run_paths(run_id)
         raw = cache.get(paths.events)
         kept = list(filter_superseded(raw))
-        out = []
-        for e in kept:
-            if e["seq"] <= after:
-                continue
-            if not full and e["type"] == "llm_call" and any(k in e["data"] for k in _HEAVY):
-                e = {**e, "data": {k: v for k, v in e["data"].items() if k not in _HEAVY}}
-            out.append(e)
+        out = [_light(e, full) for e in kept if e["seq"] > after]
         last = max((e["seq"] for e in raw), default=0)
         return {"events": out, "last_seq": last}
+
+    @app.get("/api/runs/{run_id}/stream")
+    async def stream(run_id: str, request: Request, after: int = 0) -> StreamingResponse:
+        """Server-sent events: every new log line as it is written (live mode). Ends after run_ended."""
+        paths = run_paths(run_id)
+        last_id = request.headers.get("last-event-id")
+        start = int(last_id) if last_id and last_id.isdigit() else after
+
+        async def gen():
+            sent = start
+            quiet_since = time.monotonic()
+            while True:
+                if await request.is_disconnected():
+                    break
+                raw = cache.get(paths.events)
+                fresh = [e for e in filter_superseded(raw) if e["seq"] > sent]
+                for e in fresh:
+                    sent = e["seq"]
+                    yield f"id: {e['seq']}\nevent: log\ndata: {json.dumps(_light(e, False), ensure_ascii=False)}\n\n"
+                if fresh:
+                    quiet_since = time.monotonic()
+                elif _ended(raw):
+                    yield "event: end\ndata: {}\n\n"
+                    break
+                elif time.monotonic() - quiet_since > keepalive_seconds:
+                    quiet_since = time.monotonic()
+                    yield ": keepalive\n\n"
+                await asyncio.sleep(poll_seconds)
+
+        return StreamingResponse(gen(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/runs/{run_id}/layout")
+    def layout(run_id: str) -> dict[str, Any]:
+        paths = run_paths(run_id)
+        meta = json.loads(paths.config.read_text(encoding="utf-8"))
+        scenario = load_scenario(meta["scenario_dir"])
+        try:
+            return build_layout(scenario.world, scenario.directory / "layout.toml")
+        except LayoutError as exc:
+            raise HTTPException(500, f"bad layout.toml: {exc}") from None
 
     @app.get("/api/runs/{run_id}/meta")
     def meta(run_id: str) -> dict[str, Any]:

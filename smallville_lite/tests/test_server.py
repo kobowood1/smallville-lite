@@ -55,3 +55,40 @@ def test_report_presets_and_interview(client):
 def test_bad_run_ids(client):
     assert client.get("/api/runs/..%2F..%2Fetc/events").status_code in (400, 404)
     assert client.get("/api/runs/nope/events").status_code == 404
+
+
+def test_layout_endpoint(client):
+    layout = client.get("/api/runs/v1/layout").json()
+    assert layout["source"] == "layout.toml" and len(layout["places"]) == 6
+
+
+def _sse(text):
+    events, cur = [], {}
+    for line in text.splitlines():
+        if not line:
+            if cur:
+                events.append(cur)
+            cur = {}
+        elif not line.startswith(":"):
+            key, _, value = line.partition(": ")
+            cur[key] = value
+    return events
+
+
+def test_stream_replays_then_ends_for_a_finished_run(client):
+    all_events = client.get("/api/runs/v1/events").json()["events"]
+    with client.stream("GET", "/api/runs/v1/stream") as r:
+        assert r.headers["content-type"].startswith("text/event-stream")
+        body = "".join(r.iter_text())
+    sse = _sse(body)
+    logs = [e for e in sse if e.get("event") == "log"]
+    assert [int(e["id"]) for e in logs] == [e["seq"] for e in all_events]
+    assert sse[-1]["event"] == "end"
+
+
+def test_stream_resumes_after_last_event_id(client):
+    all_events = client.get("/api/runs/v1/events").json()["events"]
+    cut = all_events[-5]["seq"]
+    with client.stream("GET", "/api/runs/v1/stream", headers={"Last-Event-ID": str(cut)}) as r:
+        logs = [e for e in _sse("".join(r.iter_text())) if e.get("event") == "log"]
+    assert [int(e["id"]) for e in logs] == [e["seq"] for e in all_events[-4:]]

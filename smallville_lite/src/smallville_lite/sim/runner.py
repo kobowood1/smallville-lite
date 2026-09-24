@@ -16,6 +16,7 @@ The whole run, report included, stays under the ``--budget`` cap: the simulation
 from __future__ import annotations
 
 import json
+import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -99,6 +100,7 @@ def start_run(
     run_id: str | None = None,
     make_report: bool = True,
     config_dir: str | Path | None = None,
+    pace: float = 0.0,
     out: Out = print,
 ) -> RunResult:
     scenario = load_scenario(scenario_name)
@@ -143,7 +145,7 @@ def start_run(
             out(f"baseline survey skipped: {exc}")
         log.commit_tick()
     _checkpoint(sim, config, paths)
-    return _execute(sim, scenario, config, paths, log, end_tick, budget, make_report, baseline, run_id, out)
+    return _execute(sim, scenario, config, paths, log, end_tick, budget, make_report, baseline, run_id, out, pace)
 
 
 def resume_run(
@@ -153,6 +155,7 @@ def resume_run(
     days: float | None = None,
     hours: float | None = None,
     make_report: bool = True,
+    pace: float = 0.0,
     out: Out = print,
 ) -> RunResult:
     paths = RunPaths(Path(run_dir))
@@ -190,12 +193,18 @@ def resume_run(
     reserve = float(_raw(config, "report", "reserve_usd", 0.40)) if make_report else 0.0
     sim.mind.llm.budget.max_usd = max(0.0, budget - reserve)
     baseline = json.loads(paths.baseline.read_text(encoding="utf-8")) if paths.baseline.exists() else None
-    return _execute(sim, scenario, config, paths, log, end_tick, budget, make_report, baseline, meta["run_id"], out)
+    return _execute(sim, scenario, config, paths, log, end_tick, budget, make_report, baseline, meta["run_id"], out, pace)
 
 
 def _execute(sim, scenario: Scenario, config: Config, paths: RunPaths, log: EventLog, end_tick: int, budget: float,
-             make_report: bool, baseline: dict[str, Any] | None, run_id: str, out: Out) -> RunResult:
-    sim.on_commit = lambda s: _checkpoint(s, config, paths)
+             make_report: bool, baseline: dict[str, Any] | None, run_id: str, out: Out,
+             pace: float = 0.0) -> RunResult:
+    def on_commit(s) -> None:
+        _checkpoint(s, config, paths)
+        if pace > 0:
+            time.sleep(pace)  # wall-clock pacing, so a stub run can be watched live in the viewer
+
+    sim.on_commit = on_commit
     reason, detail = "completed", None
     try:
         sim.run(end_tick)

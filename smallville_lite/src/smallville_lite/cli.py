@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--runs-dir", default="runs")
     run.add_argument("--run-id")
     run.add_argument("--no-report", action="store_true")
+    run.add_argument("--pace", type=float, default=0.0, help="wall-clock seconds to wait after each tick (watch live)")
 
     resume = sub.add_parser("resume", help="continue a run from its latest checkpoint")
     resume.add_argument("run_dir")
@@ -125,7 +126,7 @@ def _run(args: argparse.Namespace) -> int:
         return 2
     result = start_run(args.scenario, budget=args.budget, stub=args.stub, days=args.days, hours=args.hours,
                        runs_dir=args.runs_dir, run_id=args.run_id, make_report=not args.no_report,
-                       config_dir=args.config_dir)
+                       config_dir=args.config_dir, pace=args.pace)
     return _exit_code(result.reason)
 
 
